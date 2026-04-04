@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-glass-bg: rgba(255, 255, 255, 0.1);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  --color-glass-shadow: rgba(0, 0, 0, 0.25);
+  
+  --color-primary-soft: #3b82f6; 
+  --color-secondary-soft: #8b5cf6;
+}
+
+:root {
+    --bg-main: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    --card-bg: rgba(255, 255, 255, 0.5);
+    --text-main: #0c4a6e;
+    --input-bg: rgba(255, 255, 255, 0.6);
+    --input-text: #0369a1;
+    --input-border: rgba(14, 165, 233, 0.2);
+    --sphere-opacity: 0.1;
+    --credit-color: #075985;
+}
+
+.dark {
+    --bg-main: radial-gradient(circle at top right, #0f172a, #020617);
+    --card-bg: rgba(15, 23, 42, 0.6);
+    --text-main: #f1f5f9;
+    --input-bg: rgba(30, 41, 59, 0.4);
+    --input-text: #f1f5f9;
+    --input-border: rgba(255, 255, 255, 0.1);
+    --sphere-opacity: 0.2;
+    --credit-color: rgba(255, 255, 255, 0.6);
+}
+
+@layer base {
+  body {
+    @apply m-0 min-h-screen antialiased font-sans transition-colors duration-300;
+    background: var(--bg-main);
+    color: var(--text-main);
+  }
+
+  /* Global Keyboard Navigation Styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-cyan-500 ring-offset-2 dark:ring-offset-slate-900 transition-shadow duration-200;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    @apply outline-none ring-2 ring-cyan-500/50 border-cyan-500/50;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply backdrop-blur-2xl border-2 border-white/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)];
+    background: var(--card-bg);
+  }
+
+  .float-sphere {
+    @apply absolute rounded-full blur-3xl pointer-events-none;
+    opacity: var(--sphere-opacity);
+    animation: float-around 25s infinite alternate ease-in-out;
+  }
+}
+
+@keyframes float-around {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(100px, 50px) scale(1.2); }
+}
+
+@keyframes logo-hover {
+    0%, 100% { transform: translateZ(50px) translateY(0); }
+    50% { transform: translateZ(70px) translateY(-10px); }
+}
+
+.logo-3d-active {
+    animation: logo-hover 4s infinite ease-in-out;
+}
+
+/* --- LUXURY THEME SWITCH --- */
+.theme-switch-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.theme-switch {
+    width: 64px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.theme-switch::after {
+    content: "☀️";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    border-radius: 50%;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.dark .theme-switch::after {
+    content: "🌙";
+    left: 32px;
+    background: linear-gradient(135deg, #334155, #1e293b);
+}
+
+.theme-switch:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}

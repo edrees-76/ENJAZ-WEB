@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+bin/
+obj/
+dist/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# Environment
+.env
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Antigravity
+.antigravityignore
+.testsprite/
