@@ -38,11 +38,14 @@ export const PrintPage = () => {
 
   useEffect(() => {
     if (certificate && !isLoading) {
-      // Small delay to ensure template is rendered
-      const timer = setTimeout(() => {
-        window.print();
-      }, 800);
-      return () => clearTimeout(timer);
+      // Auto-trigger print dialog only when ?pdf=true is in the URL
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('pdf') === 'true') {
+        const timer = setTimeout(() => {
+          window.print();
+        }, 800);
+        return () => clearTimeout(timer);
+      }
     }
   }, [certificate, isLoading]);
 

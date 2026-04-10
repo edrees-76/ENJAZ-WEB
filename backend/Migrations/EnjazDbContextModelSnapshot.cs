@@ -97,7 +97,13 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CertificateType");
+
+                    b.HasIndex("IssueDate");
+
                     b.HasIndex("SampleReceptionId");
+
+                    b.HasIndex("Sender");
 
                     b.ToTable("Certificates");
                 });
@@ -129,6 +135,87 @@ namespace backend.Migrations
                     b.ToTable("ReceptionSamples");
                 });
 
+            modelBuilder.Entity("backend.Models.ReferralLetter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CertificateCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IncludedColumns")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PdfPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SampleCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SenderName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TemplateVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedAt");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SenderName");
+
+                    b.ToTable("ReferralLetters");
+                });
+
+            modelBuilder.Entity("backend.Models.ReferralLetterCertificate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CertificateId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReferralLetterId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificateId");
+
+                    b.HasIndex("ReferralLetterId");
+
+                    b.ToTable("ReferralLetterCertificates");
+                });
+
             modelBuilder.Entity("backend.Models.Sample", b =>
                 {
                     b.Property<int>("Id")
@@ -156,7 +243,7 @@ namespace backend.Migrations
                     b.Property<string>("IsotopeTh232")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("MeasurementDate")
+                    b.Property<DateTime?>("MeasurementDate")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Result")
@@ -287,6 +374,25 @@ namespace backend.Migrations
                     b.Navigation("SampleReception");
                 });
 
+            modelBuilder.Entity("backend.Models.ReferralLetterCertificate", b =>
+                {
+                    b.HasOne("backend.Models.Certificate", "Certificate")
+                        .WithMany()
+                        .HasForeignKey("CertificateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.ReferralLetter", "ReferralLetter")
+                        .WithMany("LinkedCertificates")
+                        .HasForeignKey("ReferralLetterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Certificate");
+
+                    b.Navigation("ReferralLetter");
+                });
+
             modelBuilder.Entity("backend.Models.Sample", b =>
                 {
                     b.HasOne("backend.Models.Certificate", "Certificate")
@@ -301,6 +407,11 @@ namespace backend.Migrations
             modelBuilder.Entity("backend.Models.Certificate", b =>
                 {
                     b.Navigation("Samples");
+                });
+
+            modelBuilder.Entity("backend.Models.ReferralLetter", b =>
+                {
+                    b.Navigation("LinkedCertificates");
                 });
 
             modelBuilder.Entity("backend.Models.SampleReception", b =>

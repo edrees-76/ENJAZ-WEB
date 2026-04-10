@@ -15,23 +15,30 @@ namespace backend.Controllers
     {
         private readonly EnjazDbContext _context;
         private readonly ICertificateService _certificateService;
+        private readonly ILogger<CertificatesController> _logger;
 
-        public CertificatesController(EnjazDbContext context, ICertificateService certificateService)
+        public CertificatesController(EnjazDbContext context, ICertificateService certificateService, ILogger<CertificatesController> logger)
         {
             _context = context;
             _certificateService = certificateService;
+            _logger = logger;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCertificates()
+        public async Task<IActionResult> GetCertificates([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var certificates = await _context.Certificates
+            var query = _context.Certificates
                 .Include(c => c.Samples)
-                .Include(c => c.SampleReception)
+                .Include(c => c.SampleReception);
+
+            var totalCount = await query.CountAsync();
+            var certificates = await query
                 .OrderByDescending(c => c.IssueDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(certificates);
+            return Ok(new { totalCount, items = certificates });
         }
 
         [HttpGet("{id}")]
@@ -73,8 +80,7 @@ namespace backend.Controllers
                 var fullError = ex.InnerException != null 
                     ? $"{ex.Message} --> {ex.InnerException.Message}" 
                     : ex.Message;
-                Console.WriteLine($"[CERTIFICATE ERROR] {fullError}");
-                Console.WriteLine($"[CERTIFICATE STACK] {ex.StackTrace}");
+                _logger.LogError(ex, "Error creating certificate. Details: {FullError}", fullError);
                 return StatusCode(500, new { message = "Error creating certificate", error = fullError });
             }
         }
@@ -112,17 +118,44 @@ namespace backend.Controllers
             existingCert.ManagerName = certificate.ManagerName;
             existingCert.Notes = certificate.Notes;
 
-            // Update nested samples
-            _context.Samples.RemoveRange(existingCert.Samples);
-
+            // Update nested samples securely (Data Integrity)
             if (certificate.Samples != null)
             {
-                foreach (var sample in certificate.Samples)
+                var incomingSampleIds = certificate.Samples.Select(s => s.Id).ToList();
+                var samplesToRemove = existingCert.Samples.Where(s => !incomingSampleIds.Contains(s.Id)).ToList();
+                _context.Samples.RemoveRange(samplesToRemove);
+
+                foreach (var incomingSample in certificate.Samples)
                 {
-                    sample.Id = 0; // generate fresh IDs
-                    sample.CertificateId = id;
-                    existingCert.Samples.Add(sample);
+                    if (incomingSample.Id == 0)
+                    {
+                        // Add new sample
+                        incomingSample.CertificateId = existingCert.Id;
+                        existingCert.Samples.Add(incomingSample);
+                    }
+                    else
+                    {
+                        // Update existing sample
+                        var existingSample = existingCert.Samples.FirstOrDefault(s => s.Id == incomingSample.Id);
+                        if (existingSample != null)
+                        {
+                            existingSample.Root = incomingSample.Root;
+                            existingSample.SampleNumber = incomingSample.SampleNumber;
+                            existingSample.Description = incomingSample.Description;
+                            existingSample.MeasurementDate = incomingSample.MeasurementDate;
+                            existingSample.Result = incomingSample.Result;
+                            existingSample.IsotopeK40 = incomingSample.IsotopeK40;
+                            existingSample.IsotopeRa226 = incomingSample.IsotopeRa226;
+                            existingSample.IsotopeTh232 = incomingSample.IsotopeTh232;
+                            existingSample.IsotopeRa = incomingSample.IsotopeRa;
+                            existingSample.IsotopeCs137 = incomingSample.IsotopeCs137;
+                        }
+                    }
                 }
+            }
+            else
+            {
+                _context.Samples.RemoveRange(existingCert.Samples);
             }
 
             try
@@ -132,6 +165,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error updating certificate {CertificateId}", id);
                 return StatusCode(500, new { message = "Error updating certificate", error = ex.Message });
             }
         }

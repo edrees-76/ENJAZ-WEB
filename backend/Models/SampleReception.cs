@@ -28,13 +28,13 @@ namespace backend.Models
         [Required]
         public string CertificateType { get; set; } = "عينات بيئية";
 
-        public DateTime Date { get; set; } = DateTime.UtcNow;
+        public DateTime Date { get; set; } = DateTime.Now;
 
         public string Status { get; set; } = "لم يتم إصدار شهادة";
 
         public int CreatedBy { get; set; }
         public string? CreatedByName { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public int? UpdatedBy { get; set; }
         public string? UpdatedByName { get; set; }

@@ -1,7 +1,18 @@
 {
-  "status": "init",
-  "scope": "codebase",
+  "status": "commited",
   "type": "frontend",
-  "localEndpoint": "http://localhost:5173/",
-  "serverPort": 49409
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5173/d:\\\\enjaz-web",
+  "executionArgs": {
+    "projectName": "enjaz-web",
+    "projectPath": "d:\\enjaz-web",
+    "testIds": [],
+    "additionalInstruction": "Focus on verifying the Quick Actions linking between Dashboard, Samples, and Certificates. Verify that the search parameter triggers the reception modal in Certificates page.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-zqOA3tytQFTjjWKAhAloVwiQbwjaBNgd1kB70R37FmqMD958rMOiJFx6FOG1nEF1TP_Jh0CPRzJpX9Lv1iGB6sACoG75NxJHVQw2qU_65jxGdcbUaqJFHDb9i9Rbyk2CphU"
+    }
+  },
+  "serverPort": 60172,
+  "proxy": "http://cb9c32ec-31f4-4da9-9346-c76232e88060:kBLUQFbObTBC4tCMqKqOBHg6cVknitUj@tun.testsprite.com:8080"
 }

@@ -5,6 +5,16 @@ import { useSampleStore } from '../store/useSampleStore';
 import { useUIStore } from '../store/useUIStore';
 import type { Certificate, CertificateSample } from '../store/useCertificateStore';
 
+const toLocalDateString = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+};
+
+const toLocalISOString = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, -1);
+};
+
 interface CertificateFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -62,7 +72,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     notificationNumber: '',
     policyNumber: '',
     financialReceiptNumber: '',
-    issueDate: new Date().toISOString().split('T')[0],
+    issueDate: toLocalDateString(),
     specialistName: '',
     sectionHeadName: '',
     managerName: '',
@@ -99,7 +109,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
           notificationNumber: reception.notificationNumber || '',
           policyNumber: reception.policyNumber || '',
           financialReceiptNumber: reception.financialReceiptNumber || '',
-          issueDate: new Date().toISOString(),
+          issueDate: toLocalISOString(),
           specialistName: '',
           sectionHeadName: '',
           managerName: '',

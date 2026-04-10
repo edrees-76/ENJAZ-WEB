@@ -293,7 +293,11 @@ const CertificateDetailsModal: React.FC<CertificateDetailsModalProps> = ({ isOpe
                     <div className="flex flex-col justify-center text-slate-800 dark:text-white font-bold bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
                       <span className="text-indigo-600 dark:text-indigo-400 font-black mb-1">{certificate.sampleReception?.createdByName || 'غير متوفر'}</span>
                       <span className="text-xs font-mono text-slate-500 dark:text-gray-400">
-                        {certificate.sampleReception?.date ? new Date(certificate.sampleReception.date).toLocaleString('ar-LY') : '---'}
+                        {certificate.sampleReception?.createdAt 
+                          ? new Date(certificate.sampleReception.createdAt).toLocaleString('ar-LY') 
+                          : certificate.sampleReception?.date 
+                            ? new Date(certificate.sampleReception.date).toLocaleString('ar-LY') 
+                            : '---'}
                       </span>
                     </div>
                   </div>
@@ -303,7 +307,11 @@ const CertificateDetailsModal: React.FC<CertificateDetailsModalProps> = ({ isOpe
                     <div className="flex flex-col justify-center text-slate-800 dark:text-white font-bold bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
                       <span className="text-emerald-600 dark:text-emerald-400 font-black mb-1">{certificate.createdByName || 'المنظومة'}</span>
                       <span className="text-xs font-mono text-slate-500 dark:text-gray-400">
-                        {certificate.issueDate ? new Date(certificate.issueDate).toLocaleString('ar-LY') : '---'}
+                        {certificate.createdAt 
+                          ? new Date(certificate.createdAt).toLocaleString('ar-LY') 
+                          : certificate.issueDate 
+                            ? new Date(certificate.issueDate).toLocaleString('ar-LY') 
+                            : '---'}
                       </span>
                     </div>
                   </div>

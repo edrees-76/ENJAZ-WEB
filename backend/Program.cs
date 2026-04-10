@@ -20,6 +20,10 @@ else
 }
 
 builder.Services.AddScoped<backend.Services.ICertificateService, backend.Services.CertificateService>();
+builder.Services.AddScoped<backend.Services.ReportService>();
+builder.Services.AddScoped<backend.Services.ExcelExportService>();
+builder.Services.AddScoped<backend.Services.PdfExportService>();
+builder.Services.AddScoped<backend.Services.ReferralPdfService>();
 
 builder.Services.AddCors(options =>
 {
@@ -32,6 +36,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing from configuration. It is required for security.");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -40,7 +45,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "a_very_long_secret_key_for_enjaz_system_12345!"))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
@@ -57,76 +62,14 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Automated database creation for SQLite (One-time at startup)
+// Auto-apply pending migrations at startup
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<EnjazDbContext>();
-        db.Database.EnsureCreated();
-        
-        // Create missing tables if database already existed before these models were added
-        try
-        {
-            db.Database.ExecuteSqlRaw(@"
-                CREATE TABLE IF NOT EXISTS Certificates (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CertificateNumber TEXT NOT NULL DEFAULT '',
-                    RecipientName TEXT NOT NULL DEFAULT '',
-                    CertificateType TEXT NOT NULL DEFAULT '',
-                    Description TEXT,
-                    IssueDate TEXT NOT NULL DEFAULT '0001-01-01',
-                    ExpiryDate TEXT,
-                    IssuingAuthority TEXT,
-                    CreatedBy INTEGER NOT NULL DEFAULT 0,
-                    CreatedByName TEXT,
-                    CreatedAt TEXT NOT NULL DEFAULT '0001-01-01',
-                    AnalysisType TEXT,
-                    Sender TEXT,
-                    Supplier TEXT,
-                    Origin TEXT,
-                    DeclarationNumber TEXT,
-                    PolicyNumber TEXT,
-                    NotificationNumber TEXT,
-                    FinancialReceiptNumber TEXT,
-                    SpecialistName TEXT,
-                    SectionHeadName TEXT,
-                    ManagerName TEXT,
-                    Notes TEXT,
-                    SampleReceptionId INTEGER,
-                    FOREIGN KEY (SampleReceptionId) REFERENCES SampleReceptions(Id)
-                );
-            ");
-            db.Database.ExecuteSqlRaw(@"
-                CREATE TABLE IF NOT EXISTS Samples (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CertificateId INTEGER NOT NULL,
-                    Root INTEGER NOT NULL DEFAULT 0,
-                    SampleNumber TEXT,
-                    Description TEXT,
-                    MeasurementDate TEXT,
-                    Result TEXT,
-                    IsotopeK40 TEXT,
-                    IsotopeRa226 TEXT,
-                    IsotopeTh232 TEXT,
-                    IsotopeRa TEXT,
-                    IsotopeCs137 TEXT,
-                    FOREIGN KEY (CertificateId) REFERENCES Certificates(Id) ON DELETE CASCADE
-                );
-            ");
-            Console.WriteLine("[DB] Certificates and Samples tables verified/created successfully.");
-            db.Database.ExecuteSqlRaw(@"
-                UPDATE SampleReceptions
-                SET Status = 'تم إصدار شهادة'
-                WHERE Id IN (
-                    SELECT SampleReceptionId FROM Certificates WHERE SampleReceptionId IS NOT NULL
-                );
-            ");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DB WARNING] Table creation check: {ex.Message}");
-        }
+        // Use Migrate instead of EnsureCreated to keep EF Migrations History in sync
+        db.Database.Migrate();
     }
 }
 

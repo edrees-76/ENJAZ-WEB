@@ -1,0 +1,6 @@
+{
+  "project_name": "Enjaz Web System 2026",
+  "workflow": {
+    "subagent_timeout": 300000
+  }
+}

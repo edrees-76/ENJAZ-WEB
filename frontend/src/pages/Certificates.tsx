@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCertificateStore } from '../store/useCertificateStore';
 import type { Certificate } from '../store/useCertificateStore';
 import { Search, Plus, Eye, Edit2, Printer, FileText, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck, Activity, Leaf, Beaker } from 'lucide-react';
@@ -8,44 +9,34 @@ import ReceptionSearchModal from '../components/ReceptionSearchModal';
 import CertificatePrintTemplate from '../components/CertificatePrintTemplate';
 
 const Certificates = () => {
-  const { certificates, fetchCertificates, isLoading } = useCertificateStore();
+  const [searchParams] = useSearchParams();
+  const { certificates, totalCount, fetchCertificates, isLoading } = useCertificateStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchCriteria, setSearchCriteria] = useState('الكل');
 
   // Selection & Modals
   const [selectedCertId, setSelectedCertId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [_isFormModalOpen, _setIsFormModalOpen] = useState(false);
-  const [_isSearchModalOpen, _setIsSearchModalOpen] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
-  const [_linkedReceptionId, _setLinkedReceptionId] = useState<number | null>(null);
+  const [linkedReceptionId, setLinkedReceptionId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
 
-  // Debug wrappers
-  const isFormModalOpen = _isFormModalOpen;
-  const isSearchModalOpen = _isSearchModalOpen;
-  const linkedReceptionId = _linkedReceptionId;
-
-  const setIsFormModalOpen = (val: boolean) => {
-    console.trace('>>> TRACE: setIsFormModalOpen(', val, ')');
-    _setIsFormModalOpen(val);
-  };
-  const setIsSearchModalOpen = (val: boolean) => {
-    console.trace('>>> TRACE: setIsSearchModalOpen(', val, ')');
-    _setIsSearchModalOpen(val);
-  };
-  const setLinkedReceptionId = (val: number | null) => {
-    console.trace('>>> TRACE: setLinkedReceptionId(', val, ')');
-    _setLinkedReceptionId(val);
-  };
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 500;
+  const itemsPerPage = 30;
 
   useEffect(() => {
-    fetchCertificates();
-  }, [fetchCertificates]);
+    fetchCertificates(currentPage, itemsPerPage);
+  }, [fetchCertificates, currentPage]);
+
+  // Handle URL action parameter
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'add' && !isSearchModalOpen && viewMode === 'list') {
+      setIsSearchModalOpen(true);
+    }
+  }, [searchParams]);
 
   // Filter logic
   const filteredCertificates = certificates.filter(c => {
@@ -77,12 +68,12 @@ const Certificates = () => {
     }
   });
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredCertificates.length / itemsPerPage));
-  const paginatedCerts = filteredCertificates.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  // Pagination (Server-side controls)
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
+  // The API already slices the data, so we just use the filtered results directly
+  const paginatedCerts = filteredCertificates;
 
-  // Stats
-  const totalCertificates = certificates.length;
+  // Stats for the current view
   const consumableCount = certificates.filter(c => c.certificateType === 'استهلاكية').length;
   const environmentalCount = certificates.filter(c => c.certificateType === 'بيئية').length;
 
@@ -93,6 +84,10 @@ const Certificates = () => {
 
   const handlePrint = (cert: Certificate) => {
     window.open(`/print/certificate/${cert.id}`, '_blank');
+  };
+
+  const handleExportPdf = (cert: Certificate) => {
+    window.open(`/print/certificate/${cert.id}?pdf=true`, '_blank');
   };
 
   const handleSearch = () => {
@@ -155,10 +150,10 @@ const Certificates = () => {
             setSelectedCertificate(null);
             setIsSearchModalOpen(true);
           }}
-          className="group px-8 py-4 glass-card bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/10 dark:hover:bg-cyan-500/20 text-cyan-800 dark:text-white rounded-2xl transition-all duration-500 flex items-center gap-3 border border-cyan-300 dark:border-cyan-500/20 hover:border-cyan-400 dark:hover:border-cyan-500/40 shadow-lg shadow-cyan-500/5"
+          className="group px-8 py-4 bg-gradient-to-br from-sky-500 to-sky-700 hover:from-sky-400 hover:to-sky-600 text-white rounded-2xl transition-all duration-500 flex items-center gap-3 border border-sky-400/50 shadow-xl shadow-sky-500/20 hover:-translate-y-1"
         >
-          <div className="p-1 bg-cyan-200 dark:bg-cyan-500/20 rounded-lg group-hover:scale-110 transition-transform">
-            <Plus className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+          <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
+            <Plus className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-bold tracking-wide">إصدار شهادة جديدة</span>
         </button>
@@ -175,7 +170,7 @@ const Certificates = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">إجمالي الشهادات</span>
-              <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{totalCertificates}</span>
+              <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{totalCount}</span>
             </div>
           </div>
 
@@ -270,8 +265,8 @@ const Certificates = () => {
             </div>
           ) : (
             <table className="w-full text-right min-w-[900px] border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-900/95 backdrop-blur-sm border-b-2 border-slate-300 dark:border-white/10">
-                <tr className="text-slate-900 dark:text-gray-300 text-sm font-extrabold uppercase tracking-widest">
+              <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 backdrop-blur-sm border-b-2 border-sky-600/50 dark:border-white/10">
+                <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest">
                   <th className="p-5 text-center w-16">ت</th>
                   <th className="p-5 w-48 whitespace-nowrap">رقم الشهادة</th>
                   <th className="p-5 min-w-[220px]">الجهة المرسلة</th>
@@ -348,10 +343,28 @@ const Certificates = () => {
           )}
         </div>
 
-        {/* ═══════════════════════════ BOTTOM BAR ═══════════════════════════ */}
-        <div className="border-t-2 border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/80 backdrop-blur-xl px-6 py-4 flex flex-wrap items-center justify-end gap-4 shrink-0">
+        {/* ═══════════════════════════ BOTTOM BAR & PAGINATION ═══════════════════════════ */}
+        <div className="border-t-2 border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/80 backdrop-blur-xl px-6 py-4 flex flex-wrap items-center justify-between gap-4 shrink-0">
 
-          {/* Action Buttons (Center) */}
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-3">
+             <button 
+               disabled={currentPage === 1 || isLoading} 
+               onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+               className="p-2 glass-card rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-700 dark:text-gray-300 transition-all disabled:opacity-30 border border-slate-200 dark:border-white/10 shadow-sm"
+             >
+               <ChevronRight className="w-5 h-5"/>
+             </button>
+             <button 
+               disabled={currentPage === totalPages || isLoading} 
+               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+               className="p-2 glass-card rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-700 dark:text-gray-300 transition-all disabled:opacity-30 border border-slate-200 dark:border-white/10 shadow-sm"
+             >
+               <ChevronLeft className="w-5 h-5"/>
+             </button>
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -367,7 +380,7 @@ const Certificates = () => {
             <button
               onClick={() => {
                 const cert = getSelectedCert();
-                if (cert) handlePrint(cert);
+                if (cert) handleExportPdf(cert);
               }}
               disabled={!selectedCertId}
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 text-sm"

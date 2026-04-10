@@ -1,0 +1,11 @@
+# Repository Structure
+- `backend/`: The ASP.NET Web API solution
+  - `Controllers/`: API entry points exposed via HTTP.
+  - `Models/`: Domain entities that map to SQLite tables.
+  - `Services/`: Core business logic decoupled from controllers.
+  - `Migrations/`: Database schema versioning.
+  - `Data/`: EF Core context configuration.
+- `frontend/`: The React web client
+  - `src/`: Component trees, UI utilities, and application logic.
+  - `public/` & `assets/`: Static resources.
+- `testsprite_tests/`: Testing configurations (TestSprite related).

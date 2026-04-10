@@ -20,6 +20,11 @@ import { useNavigationLock } from '../hooks/useNavigationLock';
 import { EditReceptionModal } from '../components/EditReceptionModal';
 import { ReceptionDetailsModal } from '../components/ReceptionDetailsModal';
 
+const toLocalDateString = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+};
+
 export const Samples = () => {
   const { fetchReceptions, addReception, receptions, loading: isStoreLoading, updateReception } = useSampleStore();
   const { lock, unlock } = useNavigationLock();
@@ -32,7 +37,7 @@ export const Samples = () => {
   const [sampleToDeleteIndex, setSampleToDeleteIndex] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 500;
+  const itemsPerPage = 30;
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'none' | 'done'>('all');
@@ -48,7 +53,7 @@ export const Samples = () => {
     policyNumber: '',
     financialReceiptNumber: '',
     certificateType: '',
-    date: new Date().toISOString().split('T')[0],
+    date: toLocalDateString(),
   });
 
   const senderOptions = [
@@ -129,7 +134,7 @@ export const Samples = () => {
       policyNumber: '',
       financialReceiptNumber: '',
       certificateType: '',
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateString(),
     });
     setCurrentSamples([]);
     setNewSample({ sampleNumber: '', description: '', root: '' });
@@ -186,7 +191,7 @@ export const Samples = () => {
         policyNumber: '',
         financialReceiptNumber: '',
         certificateType: '',
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateString(),
       });
         setCurrentSamples([]);
       fetchReceptions();
@@ -215,10 +220,10 @@ export const Samples = () => {
          {!showAddForm ? (
           <button
             onClick={() => setShowAddForm(true)}
-            className="group px-8 py-4 glass-card bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/10 dark:hover:bg-cyan-500/20 text-cyan-800 dark:text-white rounded-2xl transition-all duration-500 flex items-center gap-3 border border-cyan-300 dark:border-cyan-500/20 hover:border-cyan-400 dark:hover:border-cyan-500/40 shadow-lg shadow-cyan-500/5"
+            className="group px-8 py-4 bg-gradient-to-br from-sky-500 to-sky-700 hover:from-sky-400 hover:to-sky-600 text-white rounded-2xl transition-all duration-500 flex items-center gap-3 border border-sky-400/50 shadow-xl shadow-sky-500/20 hover:-translate-y-1"
           >
-            <div className="p-1 bg-cyan-200 dark:bg-cyan-500/20 rounded-lg group-hover:scale-110 transition-transform">
-              <Plus className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+            <div className="p-1 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
+              <Plus className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold tracking-wide">تسجيل استلام جديد</span>
           </button>
@@ -759,8 +764,8 @@ export const Samples = () => {
 
                 <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-2xl border border-slate-300/50 dark:border-white/10">
                   <table className="w-full text-right border-collapse relative">
-                    <thead className="sticky top-0 z-10 bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-300 dark:border-white/10">
-                      <tr className="text-slate-900 dark:text-gray-300 text-sm font-extrabold uppercase tracking-widest text-right">
+                    <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 border-b-2 border-sky-600/50 dark:border-white/10">
+                      <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest text-right">
                         <th className="p-5 font-extrabold whitespace-nowrap text-center">التسلسل</th>
                         <th className="p-5 font-extrabold min-w-[200px]">الجهة المرسلة</th>
                         <th className="p-5 font-extrabold min-w-[150px]">المورد</th>

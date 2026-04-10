@@ -1,0 +1,683 @@
+[
+  {
+    "id": "TC001",
+    "title": "Issue a certificate linked to an existing reception and see it listed",
+    "description": "Verifies a compliance officer can create a certificate by linking an existing reception through the search modal, completing certificate details, and seeing the issued certificate in the list.",
+    "category": "Certificate Issuance",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /certificates"
+      },
+      {
+        "type": "action",
+        "description": "Start a new certificate issuance"
+      },
+      {
+        "type": "action",
+        "description": "Search for the newly created reception in the reception search modal"
+      },
+      {
+        "type": "action",
+        "description": "Select the reception from the search results to link it"
+      },
+      {
+        "type": "action",
+        "description": "Fill the required certificate details"
+      },
+      {
+        "type": "action",
+        "description": "Submit the certificate issuance"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the issued certificate appears in the certificates list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the certificate shows it is linked to at least one reception"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Create a new sample reception and see it listed with linkage status",
+    "description": "Verifies a reception can be created with all required metadata and appears in the receptions grid with a certificate linkage status indicator.",
+    "category": "Sample Reception Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new reception appears in the receptions grid"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reception shows an initial certificate linkage status in the grid"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Bulk issue a grouped certificate for multiple receptions and download/print PDF",
+    "description": "Verifies grouped certificate issuance works by selecting multiple receptions within limits, issuing one certificate, and producing a printable/downloadable PDF output.",
+    "category": "Certificate Issuance",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /certificates"
+      },
+      {
+        "type": "action",
+        "description": "Start a new certificate issuance"
+      },
+      {
+        "type": "action",
+        "description": "Search for receptions matching the newly created items in the reception search modal"
+      },
+      {
+        "type": "action",
+        "description": "Select multiple receptions from the search results to link them"
+      },
+      {
+        "type": "action",
+        "description": "Fill the required certificate details for grouped receptions"
+      },
+      {
+        "type": "action",
+        "description": "Submit the certificate issuance"
+      },
+      {
+        "type": "action",
+        "description": "Open the PDF output for the newly issued certificate"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the certificate indicates it is linked to multiple receptions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a printable or downloadable PDF view is displayed for the issued certificate"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Add multiple receptions in sequence and see them appended to the grid",
+    "description": "Verifies a clerk can enter multiple receptions back-to-back and the grid updates to include all newly created receptions.",
+    "category": "Sample Reception Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a different unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify at least two newly created receptions are present in the receptions grid"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the receptions grid remains usable after consecutive creations"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Issue Certificate quick action opens reception search and proceeds to issuance",
+    "description": "Verifies the dashboard Issue Certificate quick action opens the reception search modal and allows selecting a reception to proceed into the certificate issuance form.",
+    "category": "Dashboard Statistics",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Fill an origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the issue certificate quick action"
+      },
+      {
+        "type": "action",
+        "description": "Search for the newly created reception in the reception search modal"
+      },
+      {
+        "type": "action",
+        "description": "Select the reception from the search results to link it"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the certificate issuance form is shown with at least one linked reception"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user can proceed with entering certificate details"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Dashboard shows key counters and monthly trend charts",
+    "description": "Verifies the dashboard renders high-level counters and monthly charts for samples and certificates so an operations user can monitor activity at a glance.",
+    "category": "Dashboard Statistics",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the dashboard statistics to finish loading"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify high-level counters for samples and certificates are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify monthly trend charts for samples and certificates are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Quick Search takes user to Samples with search focused",
+    "description": "Verifies Quick Search from the dashboard navigates to the samples view with the search UI focused for immediate lookup.",
+    "category": "Dashboard Statistics",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /"
+      },
+      {
+        "type": "action",
+        "description": "Click the quick search action"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands on the samples view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the samples search input is focused"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "Download a PDF report for a selected date range and type",
+    "description": "User generates a PDF report for a chosen report type and date range and the browser starts a PDF download after generation.",
+    "category": "Reporting & Exports",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /reports"
+      },
+      {
+        "type": "action",
+        "description": "Select a report type"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid start date into the date range start field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid end date into the date range end field"
+      },
+      {
+        "type": "action",
+        "description": "Generate the PDF export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a PDF download is initiated"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC009",
+    "title": "Required field validation prevents submitting an incomplete reception",
+    "description": "Verifies the reception form blocks submission when a required field is missing and shows a field-level validation error.",
+    "category": "Sample Reception Management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /samples"
+      },
+      {
+        "type": "action",
+        "description": "Start a new reception entry"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique analysis request number into the analysis request number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique notification number into the notification number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a unique declaration number into the declaration number field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a supplier name into the supplier field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a sender name into the sender field"
+      },
+      {
+        "type": "action",
+        "description": "Leave the origin field empty"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reception form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a required-field validation error is visible for the missing field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reception is not added to the receptions grid"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC010",
+    "title": "Cannot issue a certificate without linking a reception",
+    "description": "Verifies the certificate workflow enforces reception linkage by showing a validation error when trying to issue without selecting any reception.",
+    "category": "Certificate Issuance",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /certificates"
+      },
+      {
+        "type": "action",
+        "description": "Start a new certificate issuance"
+      },
+      {
+        "type": "action",
+        "description": "Proceed past the reception search modal without selecting any reception"
+      },
+      {
+        "type": "action",
+        "description": "Fill the required certificate details"
+      },
+      {
+        "type": "action",
+        "description": "Submit the certificate issuance"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is shown indicating a reception must be linked before issuing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no new certificate is added to the certificates list"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC011",
+    "title": "Generate a PDF report scoped to a single entity with charts suppressed",
+    "description": "User scopes the report to a single entity and generates a PDF where redundant charts are not shown for that scoped entity.",
+    "category": "Reporting & Exports",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /reports"
+      },
+      {
+        "type": "action",
+        "description": "Select a report type"
+      },
+      {
+        "type": "action",
+        "description": "Apply a filter that scopes the report to a single entity"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid start date into the date range start field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid end date into the date range end field"
+      },
+      {
+        "type": "action",
+        "description": "Generate the PDF export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the generated PDF preview indicates charts are suppressed for a single-entity scope"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC012",
+    "title": "Change filters and regenerate export reflects updated criteria",
+    "description": "User changes report filters and regenerates an export, and the UI reflects that a new export has been generated for the updated criteria.",
+    "category": "Reporting & Exports",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /reports"
+      },
+      {
+        "type": "action",
+        "description": "Select a report type"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid start date into the date range start field"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid end date into the date range end field"
+      },
+      {
+        "type": "action",
+        "description": "Generate the PDF export"
+      },
+      {
+        "type": "action",
+        "description": "Change the report filter criteria"
+      },
+      {
+        "type": "action",
+        "description": "Generate the PDF export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the UI indicates a new export was generated for the updated criteria"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC013",
+    "title": "Prevent report generation when the date range is incomplete",
+    "description": "User attempts to generate a report with a missing start or end date and sees a date validation error instead of a download.",
+    "category": "Reporting & Exports",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /reports"
+      },
+      {
+        "type": "action",
+        "description": "Select a report type"
+      },
+      {
+        "type": "action",
+        "description": "Fill a valid start date into the date range start field"
+      },
+      {
+        "type": "action",
+        "description": "Clear the date range end field"
+      },
+      {
+        "type": "action",
+        "description": "Generate the PDF export"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a date validation error is visible"
+      }
+    ],
+    "priority": "Low"
+  }
+]

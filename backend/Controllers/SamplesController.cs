@@ -53,7 +53,7 @@ namespace backend.Controllers
             var lastEntry = await _context.SampleReceptions.OrderByDescending(r => r.Id).FirstOrDefaultAsync();
             sampleReception.Sequence = (lastEntry?.Sequence ?? 0) + 1;
             
-            sampleReception.CreatedAt = DateTime.UtcNow;
+            sampleReception.CreatedAt = DateTime.Now;
             
             // Ensure samples have proper reference
             if (sampleReception.Samples != null)
@@ -100,7 +100,7 @@ namespace backend.Controllers
             existingReception.FinancialReceiptNumber = sampleReception.FinancialReceiptNumber;
             existingReception.CertificateType = sampleReception.CertificateType;
             existingReception.Date = sampleReception.Date;
-            existingReception.UpdatedAt = DateTime.UtcNow;
+            existingReception.UpdatedAt = DateTime.Now;
 
             // Update nested samples
             // Clear existing samples from database

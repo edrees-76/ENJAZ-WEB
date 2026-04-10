@@ -61,13 +61,14 @@ export interface Certificate {
 interface CertificateState {
   certificates: Certificate[];
   selectedCertificate: Certificate | null;
+  totalCount: number;
   
   // API Flags
   isLoading: boolean;
   error: string | null;
 
   // Actions
-  fetchCertificates: () => Promise<void>;
+  fetchCertificates: (page?: number, pageSize?: number) => Promise<void>;
   clearCertificates: () => void;
   fetchCertificateById: (id: number) => Promise<Certificate | null>;
   setSelectedCertificate: (cert: Certificate | null) => void;
@@ -79,17 +80,24 @@ interface CertificateState {
 export const useCertificateStore = create<CertificateState>((set) => ({
   certificates: [],
   selectedCertificate: null,
+  totalCount: 0,
   isLoading: false,
   error: null,
 
-  fetchCertificates: async () => {
+  fetchCertificates: async (page = 1, pageSize = 50) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get('http://localhost:5144/api/certificates');
-      set({ certificates: response.data, isLoading: false });
+      const response = await axios.get(`http://localhost:5144/api/certificates?page=${page}&pageSize=${pageSize}`);
+      // Handle the case where the backend might still return the old array format during hot reload,
+      // or the new { totalCount, items } format.
+      if (Array.isArray(response.data)) {
+         set({ certificates: response.data, totalCount: response.data.length, isLoading: false });
+      } else {
+         set({ certificates: response.data.items || [], totalCount: response.data.totalCount || 0, isLoading: false });
+      }
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
-      set({ certificates: [], isLoading: false });
+      set({ certificates: [], totalCount: 0 });
     }
   },
 

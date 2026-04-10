@@ -1,0 +1,60 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React (Vite)
+  - Tailwind CSS
+  - Lucide Icons
+  - Zustand (Store)
+  - Recharts (Charts)
+routes:
+  - path: /login
+    file: src/pages/Login.tsx
+    auth_required: false
+    description: User login page (admin/admin defaults)
+  - path: /
+    file: src/pages/DashboardHome.tsx
+    auth_required: false
+    description: System dashboard with statistics and quick actions
+  - path: /samples
+    file: src/pages/Samples.tsx
+    auth_required: false
+    description: Sample reception management and tracking
+  - path: /certificates
+    file: src/pages/Certificates.tsx
+    auth_required: false
+    description: Certificate issuance and printing management
+  - path: /reports
+    file: src/pages/Reports.tsx
+    auth_required: false
+    description: Reporting dashboard for PDF/Excel exports
+features:
+  - name: Dashboard Statistics
+    description: Visualize sample and certificate trends
+    files:
+      - src/pages/DashboardHome.tsx
+      - src/store/useSampleStore.ts
+    entry_route: /
+    user_interactions:
+      - View monthly charts
+      - Click "Issue Certificate" quick action to open search modal
+      - Click "Quick Search" to navigate to samples with search focus
+    api_calls:
+      - method: GET
+        endpoint: /api/dashboard/stats
+  - name: Certificate Generation
+    description: Link reception records to new certificates
+    files:
+      - src/pages/Certificates.tsx
+      - src/components/ReceptionSearchModal.tsx
+    entry_route: /certificates
+    user_interactions:
+      - Click "New Certificate" button
+      - Search for a specific reception record in the modal
+      - Fill certificate details and click issue
+    api_calls:
+      - method: GET
+        endpoint: /api/certificates
+      - method: POST
+        endpoint: /api/certificates
+known_limitations: []
