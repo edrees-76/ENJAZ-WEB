@@ -20,18 +20,24 @@ namespace backend.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] UserLoginRequest request)
         {
+            // Log for debugging
+            Console.WriteLine($"\n[AUTH] Login Attempt - Username: {request.Username}");
+
             // Initial mock authentication
             if (request.Username == "admin" && request.Password == "admin")
             {
+                Console.WriteLine("[AUTH] Admin login successful");
                 var token = GenerateToken("admin", "Admin");
                 return Ok(new { Token = token, Username = "admin", Role = "Admin" });
             }
             if (request.Username == "tech" && request.Password == "tech")
             {
+                Console.WriteLine("[AUTH] Tech login successful");
                 var token = GenerateToken("tech", "Technician");
                 return Ok(new { Token = token, Username = "tech", Role = "Technician" });
             }
 
+            Console.WriteLine($"[AUTH] Login failed for user: {request.Username}");
             return Unauthorized(new { message = "Invalid credentials" });
         }
 

@@ -3,6 +3,9 @@ import { Dashboard } from './pages/Dashboard';
 import { DashboardHome } from './pages/DashboardHome';
 import { Login } from './pages/Login';
 import { Samples } from './pages/Samples';
+import Certificates from './pages/Certificates';
+import { PrintPage } from './pages/PrintPage';
+import { DesignReview } from './pages/DesignReview';
 import { useAuthStore } from './store/useAuthStore';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -15,10 +18,13 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/design-review" element={<DesignReview />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
           <Route index element={<DashboardHome />} />
           <Route path="samples" element={<Samples />} />
+          <Route path="certificates" element={<Certificates />} />
         </Route>
+        <Route path="/print/certificate/:id" element={<ProtectedRoute><PrintPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

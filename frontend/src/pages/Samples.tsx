@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Beaker,
-  Search,
   Plus,
   Trash2,
   Save,
@@ -13,13 +12,16 @@ import {
   Globe,
   Tag,
   Hash,
-  Activity
+  Activity,
+  Leaf
 } from 'lucide-react';
 import { useSampleStore } from '../store/useSampleStore';
 import { useNavigationLock } from '../hooks/useNavigationLock';
+import { EditReceptionModal } from '../components/EditReceptionModal';
+import { ReceptionDetailsModal } from '../components/ReceptionDetailsModal';
 
 export const Samples = () => {
-  const { fetchReceptions, addReception, receptions } = useSampleStore();
+  const { fetchReceptions, addReception, receptions, loading: isStoreLoading, updateReception } = useSampleStore();
   const { lock, unlock } = useNavigationLock();
   const [searchParams] = useSearchParams();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -29,7 +31,11 @@ export const Samples = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sampleToDeleteIndex, setSampleToDeleteIndex] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 500;
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'none' | 'done'>('all');
 
   // Main Reception Data
   const [formData, setFormData] = useState({
@@ -71,12 +77,21 @@ export const Samples = () => {
     currentSamples.length > 0;
 
   useEffect(() => {
-    fetchReceptions();
+    const loadData = async () => {
+      try {
+        await fetchReceptions();
+      } catch (err) {
+        console.error('Failed to fetch receptions:', err);
+      }
+    };
+    
+    loadData();
     
     // Auto-open form if requested via URL
     if (searchParams.get('action') === 'add') {
       setShowAddForm(true);
     }
+    
   }, []);
 
   // Smart Navigation Lock: Only lock if form has data
@@ -177,6 +192,9 @@ export const Samples = () => {
       fetchReceptions();
       setShowAddForm(false);
       unlock();
+    } else {
+      setFormErrors(['فشل في حفظ البيانات. تأكد من تشغيل الخادم وإعادة المحاولة.']);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -339,7 +357,7 @@ export const Samples = () => {
                       required
                       value={formData.certificateType}
                       onChange={(e) => setFormData({ ...formData, certificateType: e.target.value })}
-                      className="w-full bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3.5 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all invalid:text-slate-400 dark:invalid:text-gray-500"
+                      className="w-full bg-cyan-100 dark:bg-cyan-900/40 border-2 border-cyan-500 dark:border-cyan-400 rounded-xl px-4 py-3.5 text-cyan-900 dark:text-cyan-100 focus:outline-none focus:ring-4 focus:ring-cyan-500/30 transition-all font-bold tracking-wide shadow-md"
                     >
                       <option value="" disabled hidden>اختر نوع العينات...</option>
                       <option value="عينات بيئية" className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">عينات بيئية</option>
@@ -663,138 +681,275 @@ export const Samples = () => {
       ) : (
         <div className="space-y-6">
           {/* List of Previous Receptions (The Dashboard of Samples) */}
+          
+          {/* Pagination Logic */}
+          {(() => {
+            let validReceptions = Array.isArray(receptions) ? receptions.filter(r => r != null) : [];
+            
+            if (statusFilter === 'done') {
+              validReceptions = validReceptions.filter(r => r.status === 'تم إصدار شهادة');
+            } else if (statusFilter === 'none') {
+              validReceptions = validReceptions.filter(r => r.status !== 'تم إصدار شهادة');
+            }
+            
+            const totalPages = Math.max(1, Math.ceil(validReceptions.length / itemsPerPage));
+            const indexOfLastItem = currentPage * itemsPerPage;
+            const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+            const currentReceptions = validReceptions.slice(indexOfFirstItem, indexOfLastItem);
+            
+            return (
+              <div className="glass-card rounded-[2.5rem] border border-slate-300/50 dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
+                <div className="p-6 border-b border-slate-300 dark:border-white/5 flex justify-between items-center bg-white/40 dark:bg-white/[0.02]">
+                  
+                  {/* Statistics Cards */}
+                  <div className="flex gap-6 items-center">
+                    <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+                      <div className="w-14 h-14 rounded-full bg-cyan-100 dark:bg-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-inner shrink-0">
+                        <Activity className="w-7 h-7" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">إجمالي العينات</span>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{validReceptions.length}</span>
+                      </div>
+                    </div>
 
+                    <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+                      <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner shrink-0">
+                        <Leaf className="w-7 h-7" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">عينات بيئية</span>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">
+                          {validReceptions.filter(r => r.certificateType === 'عينات بيئية').length}
+                        </span>
+                      </div>
+                    </div>
 
-          <div className="glass-card rounded-[2.5rem] border border-slate-300/50 dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
-            <div className="p-8 border-b border-slate-300 dark:border-white/5 flex justify-end items-center bg-white/40 dark:bg-white/[0.02]">
-              <div className="flex gap-4">
-                <div className="relative">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-gray-500" />
-                  <input
-                    className="bg-white dark:bg-black/20 border border-slate-300 dark:border-white/5 rounded-xl pr-10 pl-4 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 w-64 transition-all"
-                    placeholder="بحث بواسطة رقم الطلب أو الجهة..."
-                  />
-                </div>
-              </div>
-            </div>
+                    <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+                      <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner shrink-0">
+                        <Beaker className="w-7 h-7" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">عينات استهلاكية</span>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">
+                          {validReceptions.filter(r => r.certificateType === 'عينات استهلاكية').length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-right">
-                <thead>
-                  <tr className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 text-xs font-bold uppercase tracking-widest text-right">
-                    <th className="p-4 font-bold whitespace-nowrap text-center">التسلسل</th>
-                    <th className="p-4 font-bold min-w-[200px]">الجهة المرسلة</th>
-                    <th className="p-4 font-bold min-w-[150px]">المورد</th>
-                    <th className="p-4 font-bold whitespace-nowrap">الإيصال المالي</th>
-                    <th className="p-4 font-bold whitespace-nowrap">رقم الإخطار</th>
-                    <th className="p-4 font-bold whitespace-nowrap">تاريخ الاستلام</th>
-                    <th className="p-4 font-bold whitespace-nowrap">النوع</th>
-                    <th className="p-4 font-bold whitespace-nowrap text-center">الحالة</th>
-                    <th className="p-4 font-bold whitespace-nowrap text-center">عدد العينات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-white/5">
-                  {receptions.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-20 text-center">
-                        <div className="flex flex-col items-center gap-4 opacity-40">
-                          <AlertCircle className="w-12 h-12 text-slate-800 dark:text-white" />
-                          <p className="text-lg text-slate-800 dark:text-white">لم يتم العثور على أي معاملات مسجلة</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    receptions.map((item, idx) => (
-                      <tr
-                        key={idx}
-                        onClick={() => setSelectedReceptionIndex(idx)}
-                        className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${selectedReceptionIndex === idx ? 'bg-cyan-500/10 dark:bg-cyan-500/20 shadow-inner border-y border-cyan-500/30' : ''}`}
+                  <div className="flex items-center gap-4">
+                    <label className="text-sm font-bold text-slate-600 dark:text-gray-400">متابعة استلام العينات:</label>
+                    <div className="relative">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-cyan-500/50 w-64 transition-all appearance-none cursor-pointer shadow-sm"
                       >
-                        <td className="p-4 text-center">
-                          <span className={`text-xs font-mono p-2 rounded-lg ${selectedReceptionIndex === idx ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 font-bold' : 'bg-slate-200 dark:bg-white/5 text-slate-800 dark:text-white'}`}>#{item.sequence || idx + 1}</span>
-                        </td>
-                        <td className="p-4 text-slate-700 dark:text-gray-300 text-sm font-bold">{item.sender}</td>
-                        <td className="p-4 text-slate-600 dark:text-gray-400 text-sm">{item.supplier || '-'}</td>
-                        <td className="p-4 text-slate-600 dark:text-gray-400 text-sm font-mono">{item.financialReceiptNumber || '-'}</td>
-                        <td className="p-4 text-slate-600 dark:text-gray-400 text-sm font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
-                        <td className="p-4 text-slate-600 dark:text-gray-400 text-sm font-mono whitespace-nowrap">
-                          {new Date(item.createdAt || item.date).toLocaleDateString('ar-LY')}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-                              : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'
-                            }`}>
-                            {item.certificateType}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="px-3 py-1.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 whitespace-nowrap">
-                            قيد التحليل
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="font-bold text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 px-3 py-1 rounded-lg">
-                            {item.samples?.length || 0}
-                          </span>
-                        </td>
+                        <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">الكل</option>
+                        <option value="none" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">لم يتم إصدار شهادة</option>
+                        <option value="done" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">تم إصدار شهادة</option>
+                      </select>
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-2xl border border-slate-300/50 dark:border-white/10">
+                  <table className="w-full text-right border-collapse relative">
+                    <thead className="sticky top-0 z-10 bg-slate-200 dark:bg-slate-900 border-b-2 border-slate-300 dark:border-white/10">
+                      <tr className="text-slate-900 dark:text-gray-300 text-sm font-extrabold uppercase tracking-widest text-right">
+                        <th className="p-5 font-extrabold whitespace-nowrap text-center">التسلسل</th>
+                        <th className="p-5 font-extrabold min-w-[200px]">الجهة المرسلة</th>
+                        <th className="p-5 font-extrabold min-w-[150px]">المورد</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap">الإيصال المالي</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap">رقم الإخطار</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap text-center">تاريخ الاستلام</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap text-center">النوع</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap text-center">الحالة</th>
+                        <th className="p-5 font-extrabold whitespace-nowrap text-center">عدد العينات</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Action Buttons Below Table */}
-            <div className="p-6 border-t border-slate-200 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-black/10">
-
-              {/* Stats counters as in Enjaz 2026 */}
-              <div className="flex items-center gap-8 font-bold text-sm text-slate-600 dark:text-gray-300">
-                <div className="flex items-center gap-2">
-                  <span>إجمالي العينات :</span>
-                  <span className="text-lg text-slate-800 dark:text-white">{receptions.length}</span>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-white/5">
+                      {isStoreLoading ? (
+                        <tr>
+                          <td colSpan={9} className="p-20 text-center">
+                            <div className="flex flex-col items-center gap-4">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+                              <p className="text-lg text-slate-600 dark:text-gray-400 font-bold">جاري تحميل البيانات...</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : validReceptions.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-20 text-center">
+                            <div className="flex flex-col items-center gap-4 opacity-40">
+                              <AlertCircle className="w-12 h-12 text-slate-800 dark:text-white" />
+                              <p className="text-lg text-slate-800 dark:text-white">لم يتم العثور على أي معاملات مسجلة</p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        currentReceptions.map((item, idx) => {
+                          if (!item) return null;
+                          const globalIdx = indexOfFirstItem + idx;
+                          return (
+                            <tr
+                              key={globalIdx}
+                              onClick={() => setSelectedReceptionIndex(globalIdx)}
+                              className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${selectedReceptionIndex === globalIdx ? 'bg-cyan-100 dark:bg-cyan-500/20 shadow-sm border-y border-cyan-500/30' : ''}`}
+                            >
+                              <td className="p-5 text-center">
+                                <span className={`text-sm font-mono p-2.5 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
+                              </td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base font-bold">{item.sender}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base">{item.supplier || '-'}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono">{item.financialReceiptNumber || '-'}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap text-center">
+                                {(() => {
+                                  try {
+                                    const dateVal = item.createdAt || item.date;
+                                    if (!dateVal) return '-';
+                                    const d = new Date(dateVal);
+                                    if (isNaN(d.getTime())) return '-';
+                                    return d.toLocaleString('ar-LY', { 
+                                      year: 'numeric', 
+                                      month: '2-digit', 
+                                      day: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    });
+                                  } catch (e) {
+                                    return '-';
+                                  }
+                                })()}
+                              </td>
+                              <td className="p-5 text-center">
+                                <span className={`px-4 py-2 rounded-full text-xs font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'
+                                  }`}>
+                                  {item.certificateType}
+                                </span>
+                              </td>
+                              <td className="p-5 text-center">
+                                <span className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border ${
+                                  item.status === 'تم إصدار شهادة'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
+                                    : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
+                                }`}>
+                                  {item.status || 'لم يتم إصدار شهادة'}
+                                </span>
+                              </td>
+                              <td className="p-5 text-center">
+                                <span className="font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-white/10 px-4 py-1.5 rounded-xl text-lg">
+                                  {item.samples?.length || 0}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span>استهلاكية :</span>
-                  <span className="text-lg text-indigo-600 dark:text-indigo-400">
-                    {receptions.filter(r => r.certificateType === 'عينات استهلاكية').length}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span>بيئية :</span>
-                  <span className="text-lg text-emerald-600 dark:text-emerald-400">
-                    {receptions.filter(r => r.certificateType === 'عينات بيئية').length}
-                  </span>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="px-8 py-4 border-t border-slate-200 dark:border-white/5 flex justify-center items-center gap-6 bg-white/20 dark:bg-black/5">
+                    <button
+                      onClick={() => {
+                        setCurrentPage(p => Math.max(1, p - 1));
+                        setSelectedReceptionIndex(null);
+                      }}
+                      disabled={currentPage === 1}
+                      className="p-2 glass-card-subtle bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-gray-400"
+                      title="الصفحة السابقة"
+                    >
+                      <ChevronRight className="w-6 h-6 rotate-180" />
+                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                       <span className="text-sm font-bold text-slate-500 dark:text-gray-400">صفحة</span>
+                       <span className="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-3 py-1 rounded-lg font-mono font-bold text-lg">{currentPage}</span>
+                       <span className="text-sm font-bold text-slate-500 dark:text-gray-400">من</span>
+                       <span className="text-slate-800 dark:text-white font-bold">{totalPages}</span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setCurrentPage(p => Math.min(totalPages, p + 1));
+                        setSelectedReceptionIndex(null);
+                      }}
+                      disabled={currentPage === totalPages}
+                      className="p-2 glass-card-subtle bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-white/10 transition-all text-slate-600 dark:text-gray-400"
+                      title="الصفحة التالية"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Action Buttons Below Table */}
+                <div className="p-6 border-t border-slate-200 dark:border-white/5 flex justify-end items-center bg-slate-50/50 dark:bg-black/10">
+                  <div className="flex gap-4">
+                    <button
+                      disabled={selectedReceptionIndex === null}
+                      onClick={() => setShowDetailsModal(true)}
+                      className={`py-2 px-6 rounded-xl font-bold flex items-center gap-2 transition-all duration-300
+                        ${selectedReceptionIndex !== null
+                          ? 'bg-white text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-white/10'
+                          : 'bg-slate-100 text-slate-400 dark:bg-black/20 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      عرض التفاصيل
+                    </button>
+
+                    <button
+                      disabled={selectedReceptionIndex === null}
+                      onClick={() => setShowEditModal(true)}
+                      className={`py-3 px-8 rounded-2xl font-bold flex items-center gap-2 transition-all duration-300 shadow-lg
+                        ${selectedReceptionIndex !== null
+                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-500 hover:to-teal-500 hover:scale-105 active:scale-95'
+                          : 'bg-slate-100 text-slate-400 dark:bg-black/20 dark:text-gray-600 cursor-not-allowed border border-transparent shadow-none'}`}
+                    >
+                      <Beaker className="w-5 h-5" />
+                      تعديل العينات
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex gap-4">
-                <button
-                  disabled={selectedReceptionIndex === null}
-                  className={`py-2 px-6 rounded-xl font-bold flex items-center gap-2 transition-all duration-300
-                    ${selectedReceptionIndex !== null
-                      ? 'bg-white text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-white/10'
-                      : 'bg-slate-100 text-slate-400 dark:bg-black/20 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}
-                >
-                  <FileText className="w-4 h-4" />
-                  عرض التفاصيل
-                </button>
-
-                <button
-                  disabled={selectedReceptionIndex === null}
-                  className={`py-2 px-6 rounded-xl font-bold flex items-center gap-2 transition-all duration-300
-                    ${selectedReceptionIndex !== null
-                      ? 'bg-white text-slate-700 border border-slate-300 shadow-sm hover:bg-slate-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-white/10'
-                      : 'bg-slate-100 text-slate-400 dark:bg-black/20 dark:text-gray-600 cursor-not-allowed border border-transparent'}`}
-                >
-                  <Beaker className="w-4 h-4" />
-                  تعديل العينات
-                </button>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
+
+      {/* Edit Modal Component */}
+      <EditReceptionModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        reception={selectedReceptionIndex !== null && Array.isArray(receptions) && selectedReceptionIndex < receptions.length ? receptions[selectedReceptionIndex] : null}
+        onSave={async (updated) => {
+          if (updated.id) {
+            const success = await updateReception(updated.id, updated);
+            if (success) {
+              setShowEditModal(false);
+              setSelectedReceptionIndex(null);
+              return true;
+            }
+          }
+          return false;
+        }}
+      />
+
+      <ReceptionDetailsModal 
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        reception={selectedReceptionIndex !== null && Array.isArray(receptions) && selectedReceptionIndex < receptions.length ? receptions[selectedReceptionIndex] : null}
+      />
     </div>
   );
 };

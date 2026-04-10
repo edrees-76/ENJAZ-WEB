@@ -1,0 +1,423 @@
+import { useEffect, useState } from 'react';
+import { useCertificateStore } from '../store/useCertificateStore';
+import type { Certificate } from '../store/useCertificateStore';
+import { Search, Plus, Eye, Edit2, Printer, FileText, RotateCcw, ChevronLeft, ChevronRight, ShieldCheck, Activity, Leaf, Beaker } from 'lucide-react';
+import CertificateDetailsModal from '../components/CertificateDetailsModal';
+import CertificateFormModal from '../components/CertificateFormModal';
+import ReceptionSearchModal from '../components/ReceptionSearchModal';
+import CertificatePrintTemplate from '../components/CertificatePrintTemplate';
+
+const Certificates = () => {
+  const { certificates, fetchCertificates, isLoading } = useCertificateStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchCriteria, setSearchCriteria] = useState('الكل');
+
+  // Selection & Modals
+  const [selectedCertId, setSelectedCertId] = useState<number | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [_isFormModalOpen, _setIsFormModalOpen] = useState(false);
+  const [_isSearchModalOpen, _setIsSearchModalOpen] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
+  const [_linkedReceptionId, _setLinkedReceptionId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'form'>('list');
+
+  // Debug wrappers
+  const isFormModalOpen = _isFormModalOpen;
+  const isSearchModalOpen = _isSearchModalOpen;
+  const linkedReceptionId = _linkedReceptionId;
+
+  const setIsFormModalOpen = (val: boolean) => {
+    console.trace('>>> TRACE: setIsFormModalOpen(', val, ')');
+    _setIsFormModalOpen(val);
+  };
+  const setIsSearchModalOpen = (val: boolean) => {
+    console.trace('>>> TRACE: setIsSearchModalOpen(', val, ')');
+    _setIsSearchModalOpen(val);
+  };
+  const setLinkedReceptionId = (val: number | null) => {
+    console.trace('>>> TRACE: setLinkedReceptionId(', val, ')');
+    _setLinkedReceptionId(val);
+  };
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 500;
+
+  useEffect(() => {
+    fetchCertificates();
+  }, [fetchCertificates]);
+
+  // Filter logic
+  const filteredCertificates = certificates.filter(c => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    switch (searchCriteria) {
+      case 'رقم الشهادة': return (c.certificateNumber || '').toLowerCase().includes(term);
+      case 'الجهة المرسلة': return (c.sender || '').toLowerCase().includes(term);
+      case 'المورد': return (c.supplier || '').toLowerCase().includes(term);
+      case 'رقم الاخطار': return (c.notificationNumber || '').toLowerCase().includes(term);
+      case 'رقم الاقرار الجمركى': return (c.declarationNumber || '').toLowerCase().includes(term);
+      case 'رقم الايصال المالى': return (c.financialReceiptNumber || '').toLowerCase().includes(term);
+      case 'رقم البوليصة': return (c.policyNumber || '').toLowerCase().includes(term);
+      case 'رقم العينة': return c.samples?.some(s => (s.sampleNumber || '').toLowerCase().includes(term));
+      case 'اسم المستخدم': return (c.specialistName || '').toLowerCase().includes(term);
+      case 'التاريخ': return (c.issueDate || '').toLowerCase().includes(term);
+      case 'الكل':
+      default:
+        return (
+          (c.certificateNumber || '').toLowerCase().includes(term) ||
+          (c.sender || '').toLowerCase().includes(term) ||
+          (c.supplier || '').toLowerCase().includes(term) ||
+          (c.notificationNumber || '').toLowerCase().includes(term) ||
+          (c.declarationNumber || '').toLowerCase().includes(term) ||
+          (c.financialReceiptNumber || '').toLowerCase().includes(term) ||
+          (c.policyNumber || '').toLowerCase().includes(term) ||
+          c.samples?.some(s => (s.sampleNumber || '').toLowerCase().includes(term))
+        );
+    }
+  });
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredCertificates.length / itemsPerPage));
+  const paginatedCerts = filteredCertificates.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Stats
+  const totalCertificates = certificates.length;
+  const consumableCount = certificates.filter(c => c.certificateType === 'استهلاكية').length;
+  const environmentalCount = certificates.filter(c => c.certificateType === 'بيئية').length;
+
+  // Get selected certificate object
+  const getSelectedCert = (): Certificate | null => {
+    return certificates.find(c => c.id === selectedCertId) || null;
+  };
+
+  const handlePrint = (cert: Certificate) => {
+    window.open(`/print/certificate/${cert.id}`, '_blank');
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+  };
+
+  const handleReset = () => {
+    setSearchTerm('');
+    setSearchCriteria('الكل');
+    setCurrentPage(1);
+  };
+
+  if (viewMode === 'form') {
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+        <CertificateFormModal
+          isOpen={true}
+          isFullScreen={true}
+          onClose={() => {
+            setViewMode('list');
+            setLinkedReceptionId(null);
+            setSelectedCertificate(null);
+            fetchCertificates();
+          }}
+          certificate={selectedCertificate}
+          linkedReceptionId={linkedReceptionId}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+      <ReceptionSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onSelect={(receptionId) => {
+          setIsSearchModalOpen(false);
+          setLinkedReceptionId(receptionId);
+          setSelectedCertificate(null); // Ensure we are creating new
+          setViewMode('form');
+        }}
+      />
+
+      {/* ═══════════════════════════ HEADER ═══════════════════════════ */}
+      <div className="flex justify-between items-center bg-white/40 dark:bg-white/[0.02] p-6 rounded-[2rem] border border-slate-200/50 dark:border-white/5 shadow-sm">
+        <div className="flex items-center gap-4">
+          <h1 className="text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
+            <span className="p-3 glass-card rounded-2xl shadow-xl ring-1 ring-slate-200 dark:ring-white/10">
+              <ShieldCheck className="w-10 h-10 text-emerald-600 dark:text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            </span>
+            الشهادات
+          </h1>
+        </div>
+
+        <button
+          onClick={() => {
+            setLinkedReceptionId(null);
+            setSelectedCertificate(null);
+            setIsSearchModalOpen(true);
+          }}
+          className="group px-8 py-4 glass-card bg-cyan-100 hover:bg-cyan-200 dark:bg-cyan-500/10 dark:hover:bg-cyan-500/20 text-cyan-800 dark:text-white rounded-2xl transition-all duration-500 flex items-center gap-3 border border-cyan-300 dark:border-cyan-500/20 hover:border-cyan-400 dark:hover:border-cyan-500/40 shadow-lg shadow-cyan-500/5"
+        >
+          <div className="p-1 bg-cyan-200 dark:bg-cyan-500/20 rounded-lg group-hover:scale-110 transition-transform">
+            <Plus className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+          </div>
+          <span className="text-lg font-bold tracking-wide">إصدار شهادة جديدة</span>
+        </button>
+      </div>
+
+      {/* ═══════════════════════════ SEARCH BAR & STATS ═══════════════════════════ */}
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-6">
+
+        {/* Statistics Cards */}
+        <div className="flex gap-6 items-center">
+          <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+            <div className="w-14 h-14 rounded-full bg-cyan-100 dark:bg-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-inner shrink-0">
+              <Activity className="w-7 h-7" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">إجمالي الشهادات</span>
+              <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{totalCertificates}</span>
+            </div>
+          </div>
+
+          <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner shrink-0">
+              <Leaf className="w-7 h-7" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">شهادات بيئية</span>
+              <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{environmentalCount}</span>
+            </div>
+          </div>
+
+          <div className="glass-card-subtle bg-gradient-to-br from-white/80 to-white/40 dark:from-white/10 dark:to-transparent px-6 py-4 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center gap-5 shadow-sm hover:shadow-md transition-all">
+            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner shrink-0">
+              <Beaker className="w-7 h-7" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">شهادات استهلاكية</span>
+              <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{consumableCount}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Search Bar Container */}
+        <div className="flex items-center gap-3 justify-end bg-white/40 dark:bg-white/[0.02] p-2 rounded-2xl border border-slate-200/50 dark:border-white/5">
+          {/* Reset Button */}
+          <button
+            onClick={handleReset}
+            className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all shadow-sm active:scale-95"
+          >
+            <RotateCcw className="w-4 h-4" />
+            تعيين
+          </button>
+
+          {/* Search Button */}
+          <button
+            onClick={handleSearch}
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold transition-all shadow-md active:scale-95"
+          >
+            <Search className="w-4 h-4" />
+            بحث
+          </button>
+
+          {/* Search Input */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="اكتب للبحث..."
+              className="w-56 pr-4 pl-4 py-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all placeholder:text-slate-400 dark:placeholder:text-gray-600 font-bold shadow-sm text-center"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              dir="rtl"
+            />
+          </div>
+
+          {/* Search Criteria Dropdown */}
+          <div className="relative min-w-[160px]">
+            <select
+              value={searchCriteria}
+              onChange={(e) => setSearchCriteria(e.target.value)}
+              className="w-full px-5 py-3 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 appearance-none cursor-pointer shadow-sm text-center"
+            >
+              <option value="الكل">الكل</option>
+              <option value="رقم العينة">رقم العينة</option>
+              <option value="رقم الشهادة">رقم الشهادة</option>
+              <option value="رقم الاخطار">رقم الاخطار</option>
+              <option value="رقم الاقرار الجمركى">رقم الاقرار الجمركى</option>
+              <option value="الجهة المرسلة">الجهة المرسلة</option>
+              <option value="المورد">المورد</option>
+              <option value="رقم الايصال المالى">رقم الايصال المالى</option>
+              <option value="التاريخ">التاريخ</option>
+              <option value="رقم البوليصة">رقم البوليصة</option>
+              <option value="اسم المستخدم">اسم المستخدم</option>
+            </select>
+            <div className="absolute top-0 right-0 h-full flex items-center px-2 pointer-events-none">
+              <span className="text-[10px] font-black text-slate-400 dark:text-gray-600 uppercase tracking-widest -mt-10 mr-1 bg-white dark:bg-slate-900 px-2 rounded-full border border-slate-200 dark:border-white/10">معيار البحث</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════ MAIN TABLE ═══════════════════════════ */}
+      <div className="glass-card rounded-[2.5rem] border border-slate-300/50 dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
+
+        {/* Table Container with Fixed Height and Scroll */}
+        <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-2xl border border-slate-300/50 dark:border-white/10">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+            </div>
+          ) : (
+            <table className="w-full text-right min-w-[900px] border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-900/95 backdrop-blur-sm border-b-2 border-slate-300 dark:border-white/10">
+                <tr className="text-slate-900 dark:text-gray-300 text-sm font-extrabold uppercase tracking-widest">
+                  <th className="p-5 text-center w-16">ت</th>
+                  <th className="p-5 w-48 whitespace-nowrap">رقم الشهادة</th>
+                  <th className="p-5 min-w-[220px]">الجهة المرسلة</th>
+                  <th className="p-5 text-center w-32">عدد العينات</th>
+                  <th className="p-5 min-w-[200px]">المورد</th>
+                  <th className="p-5 w-40 text-center">رقم الإخطار</th>
+                  <th className="p-5 w-40 text-center">رقم الإيصال</th>
+                  <th className="p-5 text-center w-48 font-extrabold">تاريخ الإصدار</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedCerts.map((cert, index) => {
+                  const isSelected = selectedCertId === cert.id;
+                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                  return (
+                    <tr
+                      key={cert.id}
+                      onClick={() => setSelectedCertId(cert.id)}
+                      className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${isSelected ? 'bg-emerald-100 dark:bg-emerald-500/20 shadow-sm border-y border-emerald-500/30' : 'border-b border-slate-100 dark:border-white/5 last:border-0'}`}
+                    >
+                      <td className="p-5 text-center">
+                        <span className={`text-sm font-mono p-2.5 rounded-lg transition-all inline-block ${isSelected ? 'bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>
+                          {globalIndex}
+                        </span>
+                      </td>
+                      <td className="p-5 whitespace-nowrap">
+                        <span className={`px-4 py-1.5 rounded-xl font-black text-sm tracking-widest border border-emerald-500/10 ${cert.certificateType === 'بيئية'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          }`}>
+                          {cert.certificateNumber}
+                        </span>
+                      </td>
+                      <td className="p-5 text-slate-900 dark:text-white font-bold text-sm tracking-tight whitespace-nowrap">{cert.sender}</td>
+                      <td className="p-5 text-center whitespace-nowrap">
+                        <span className="bg-slate-200/50 dark:bg-white/10 text-slate-900 dark:text-white px-3 py-1 rounded-lg font-black text-sm">
+                          {cert.sampleCount || cert.samples?.length || 0}
+                        </span>
+                      </td>
+                      <td className="p-5 text-slate-900 dark:text-white text-sm font-bold whitespace-nowrap">{cert.supplier || '-'}</td>
+                      <td className="p-5 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.notificationNumber || '-'}</td>
+                      <td className="p-5 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.financialReceiptNumber || '-'}</td>
+                      <td className="p-5 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-2">
+                          {cert.issueDate ? (
+                            <>
+                              <span className="font-bold text-slate-900 dark:text-white text-sm">
+                                {new Date(cert.issueDate).toLocaleDateString('en-US')}
+                              </span>
+                              <span className="text-[11px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                                {new Date(cert.issueDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-slate-900 dark:text-white opacity-50 font-bold">-</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {paginatedCerts.length === 0 && !isLoading && (
+                  <tr>
+                    <td colSpan={8} className="p-20 text-center">
+                      <div className="flex flex-col items-center gap-3 opacity-30">
+                        <ShieldCheck className="w-16 h-16" />
+                        <p className="text-lg font-bold text-slate-800 dark:text-white">لا توجد شهادات مطابقة</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* ═══════════════════════════ BOTTOM BAR ═══════════════════════════ */}
+        <div className="border-t-2 border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-900/80 backdrop-blur-xl px-6 py-4 flex flex-wrap items-center justify-end gap-4 shrink-0">
+
+          {/* Action Buttons (Center) */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const cert = getSelectedCert();
+                if (cert) handlePrint(cert);
+              }}
+              disabled={!selectedCertId}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 text-sm"
+            >
+              <Printer className="w-4 h-4" />
+              طباعة
+            </button>
+            <button
+              onClick={() => {
+                const cert = getSelectedCert();
+                if (cert) handlePrint(cert);
+              }}
+              disabled={!selectedCertId}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 text-sm"
+            >
+              <FileText className="w-4 h-4" />
+              PDF
+            </button>
+            <button
+              onClick={() => {
+                const cert = getSelectedCert();
+                if (cert) { 
+                   setSelectedCertificate(cert); 
+                   setLinkedReceptionId(null);
+                   setViewMode('form'); 
+                }
+              }}
+              disabled={!selectedCertId}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 text-sm"
+            >
+              <Edit2 className="w-4 h-4" />
+              تعديل
+            </button>
+            <button
+              onClick={() => {
+                const cert = getSelectedCert();
+                if (cert) { setSelectedCertificate(cert); setIsDetailsOpen(true); }
+              }}
+              disabled={!selectedCertId}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-gray-300 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-white/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95 text-sm"
+            >
+              <Eye className="w-4 h-4" />
+              عرض تفاصيل الشهادة
+            </button>
+          </div>
+
+
+        </div>
+      </div>
+
+      {/* ═══════════════════════════ MODALS ═══════════════════════════ */}
+      {isDetailsOpen && selectedCertificate && (
+        <CertificateDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          certificate={selectedCertificate}
+        />
+      )}
+
+    </div>
+  );
+};
+
+export default Certificates;

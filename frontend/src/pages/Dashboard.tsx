@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from '../components/Sidebar';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Menu, Clock, CalendarDays } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -50,7 +51,8 @@ const DateTimeWidget = ({ username }: { username: string }) => {
 
 export const Dashboard = () => {
   const user = useAuthStore(state => state.user);
-  const { isSidebarCollapsed, toggleSidebar } = useUIStore();
+  const isSidebarCollapsed = useUIStore(state => state.isSidebarCollapsed);
+  const toggleSidebar = useUIStore(state => state.toggleSidebar);
   const location = useLocation();
   const isHomePage = location.pathname === '/';
 
@@ -101,7 +103,9 @@ export const Dashboard = () => {
 
         {/* Scrollable Main Content */}
         <div className="flex-1 overflow-y-auto px-6 pb-20">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

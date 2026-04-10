@@ -14,6 +14,15 @@ dist/
 # Environment
 .env
 
+# Database
+enjaz.db
+enjaz.db-shm
+enjaz.db-wal
+
+# Test Scripts
+clear_all_data.js
+generate_test_certs.js
+
 # OS files
 Thumbs.db
 Desktop.ini

@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { GlassCard } from '../components/GlassCard';
-import { Activity, FileText, CheckCircle, AlertTriangle, Search, Leaf, ShieldCheck, Box } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Activity, FileText, CheckCircle, AlertTriangle, Search, Leaf, ShieldCheck, Box, Loader2, RefreshCw } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useDashboardStore } from '../store/useDashboardStore';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Rectangle
@@ -8,6 +10,12 @@ import {
 
 export const DashboardHome = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { stats, loading, error, fetchStats } = useDashboardStore();
+
+  useEffect(() => {
+    fetchStats();
+  }, [location.key]);
   
   // Custom Active Bar Component for 3D effect on hover
   const renderActiveBar = (props: any) => {
@@ -28,19 +36,19 @@ export const DashboardHome = () => {
     );
   };
 
-  // Mock Data
+  // Map Real Data
   const sampleStats = {
-    total: 3500,
-    today: 25,
-    environmental: 2100,
-    consumable: 1400
+    total: stats?.totalSamples ?? 0,
+    today: stats?.samplesToday ?? 0,
+    environmental: stats?.samplesEnvironmental ?? 0,
+    consumable: stats?.samplesConsumable ?? 0
   };
 
   const certificateStats = {
-    total: 3250,
-    today: 18,
-    environmental: 1950,
-    consumer: 1300
+    total: stats?.totalCertificates ?? 0,
+    today: stats?.certificatesToday ?? 0,
+    environmental: stats?.certificatesEnvironmental ?? 0,
+    consumer: stats?.certificatesConsumable ?? 0
   };
 
   const typeData = [
@@ -53,17 +61,35 @@ export const DashboardHome = () => {
     { name: 'شهادات استهلاكية', value: certificateStats.consumer, color: '#2563eb' } 
   ];
 
-  const monthlyLabels = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-  
-  const monthlyData = monthlyLabels.map((month) => ({
-    name: month,
-    environmental: Math.floor(Math.random() * 200) + 50,
-    consumable: Math.floor(Math.random() * 150) + 30,
-  }));
+  const sampleMonthlyData = stats?.monthlySamples ?? [];
+  const certMonthlyData = stats?.monthlyCertificates ?? [];
+
+  if (loading && !stats) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+        <p className="text-slate-500 font-black animate-pulse">جاري تحديث إحصائيات المنظومة...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <AlertTriangle className="w-12 h-12 text-red-500" />
+        <p className="text-red-500 font-black">تعذر تحميل الإحصائيات: {error}</p>
+        <button 
+          onClick={fetchStats}
+          className="mt-4 px-6 py-2 bg-slate-200 dark:bg-white/10 rounded-xl hover:bg-slate-300 transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" /> إعادة المحاولة
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
-
       {/* Section 1: Samples Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <GlassCard className="flex items-center space-x-4 space-x-reverse transition-transform hover:-translate-y-1 hover:shadow-xl">
@@ -107,7 +133,6 @@ export const DashboardHome = () => {
         </GlassCard>
       </div>
 
-      {/* Section 2: Certificates Stats */}
       {/* Section 2: Certificates Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <GlassCard className="flex items-center space-x-4 space-x-reverse transition-transform hover:-translate-y-1 hover:shadow-xl">
@@ -159,7 +184,7 @@ export const DashboardHome = () => {
               <h3 className="font-bold text-xl mb-6 border-b border-slate-200/50 w-full pb-3 px-6 text-right" style={{ color: 'var(--text-main)' }}>المعدل الشهري (عينات)</h3>
               <div className="w-full px-4 pb-4" dir="ltr" style={{ height: '300px' }}>
                 <ResponsiveContainer width="99%" height="100%">
-                  <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <BarChart data={sampleMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                     <defs>
                       <linearGradient id="glassEnv" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#34d399" stopOpacity={0.8}/>
@@ -171,7 +196,7 @@ export const DashboardHome = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                     <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: 'none', color: '#fff'}} />
                     <Legend wrapperStyle={{paddingTop: '20px'}} />
@@ -221,7 +246,7 @@ export const DashboardHome = () => {
               <h3 className="font-bold text-xl mb-6 border-b border-slate-200/50 w-full pb-3 px-6 text-right" style={{ color: 'var(--text-main)' }}>المعدل الشهري (شهادات)</h3>
               <div className="w-full px-4 pb-4" dir="ltr" style={{ height: '300px' }}>
                 <ResponsiveContainer width="99%" height="100%">
-                  <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <BarChart data={certMonthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                     <defs>
                       <linearGradient id="glassCertEnv" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -233,7 +258,7 @@ export const DashboardHome = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.1} vertical={false} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
                     <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{borderRadius: '12px', background: 'rgba(15, 23, 42, 0.8)', border: 'none', color: '#fff'}} />
                     <Legend wrapperStyle={{paddingTop: '20px'}} />
@@ -292,25 +317,34 @@ export const DashboardHome = () => {
                   <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>استلام عينة</span>
                </button>
 
-               <button className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-emerald-500/20 transition-all border border-white/20 group">
+               <button 
+                onClick={() => navigate('/certificates?action=add')}
+                className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-emerald-500/20 transition-all border border-white/20 group"
+               >
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/20">
                      <FileText className="text-emerald-500" size={32} />
                   </div>
                   <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>إصدار شهادة</span>
                </button>
 
-               <button className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-amber-500/20 transition-all border border-white/20 group">
+               <button 
+                onClick={() => navigate('/samples')}
+                className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-amber-500/20 transition-all border border-white/20 group"
+               >
                   <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/20">
                      <Search className="text-amber-500" size={32} />
                   </div>
                   <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>بحث سريع</span>
                </button>
 
-               <button className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-purple-500/20 transition-all border border-white/20 group">
+               <button 
+                onClick={() => navigate('/certificates')}
+                className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-purple-500/20 transition-all border border-white/20 group"
+               >
                   <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-purple-500/20">
                      <ShieldCheck className="text-purple-500" size={32} />
                   </div>
-                  <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>إجراءات إدارية</span>
+                  <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>سجل الشهادات</span>
                </button>
             </div>
          </GlassCard>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FileText, Users, Settings, LogOut, LayoutDashboard, 
@@ -23,6 +23,7 @@ const bottomNavigation = [
 ];
 
 export const Sidebar = () => {
+  const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
   const { isSidebarCollapsed, toggleSidebar, isLocked } = useUIStore();
   const navigate = useNavigate();
@@ -71,11 +72,15 @@ export const Sidebar = () => {
     <aside 
       className={`relative rounded-[2rem] border shadow-2xl transition-all duration-500 hidden md:flex flex-col h-[calc(100vh-2rem)] my-4 mr-4 shrink-0 z-50 ${isSidebarCollapsed ? 'w-0 opacity-0 pointer-events-none -translate-x-12' : 'w-[240px] opacity-100 translate-x-0'}`}
       style={{
-        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)',
-        background: isDark ? 'linear-gradient(135deg, rgba(15,23,42,0.6) 0%, rgba(2,6,23,0.8) 100%)' : 'rgba(255, 255, 255, 0.4)',
-        boxShadow: isDark ? '0 25px 50px -12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)' : '0 10px 40px -10px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.8)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)'
+        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)',
+        background: isDark 
+          ? 'linear-gradient(135deg, rgba(15,23,42,0.6) 0%, rgba(2,6,23,0.8) 100%)' 
+          : 'rgba(255, 255, 255, 0.85)',
+        boxShadow: isDark 
+          ? '0 25px 50px -12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1)' 
+          : '0 10px 40px -10px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,1)',
+        backdropFilter: 'blur(32px)',
+        WebkitBackdropFilter: 'blur(32px)'
       }}
     >
       {/* Toggle Button */}
@@ -113,12 +118,12 @@ export const Sidebar = () => {
               onClick={() => attemptNavigation(item.path)}
               className={`w-full flex items-center py-2.5 px-3 rounded-2xl transition-all duration-300 group relative overflow-hidden`}
               style={{ 
-                color: isActive ? (isDark ? '#f8fafc' : '#0c4a6e') : 'var(--text-main)',
-                backgroundColor: isActive ? (isDark ? 'rgba(14, 165, 233, 0.15)' : 'rgba(255, 255, 255, 0.9)') : 'transparent',
-                borderColor: isActive ? (isDark ? '#0ea5e9' : 'rgba(255,255,255,1)') : 'transparent',
+                color: isActive ? (isDark ? '#f8fafc' : '#0369a1') : (isDark ? 'rgba(255,255,255,0.6)' : '#334155'),
+                backgroundColor: isActive ? (isDark ? 'rgba(14, 165, 233, 0.15)' : 'rgba(14, 165, 233, 0.08)') : 'transparent',
+                borderColor: isActive ? (isDark ? '#0ea5e9' : 'rgba(14, 165, 233, 0.2)') : 'transparent',
                 borderWidth: '1px',
-                boxShadow: isActive ? (isDark ? '0 0 15px rgba(14, 165, 233, 0.4), inset 0 0 10px rgba(14, 165, 233, 0.1)' : '0 4px 15px rgba(0,0,0,0.05)') : 'none',
-                fontWeight: isActive ? '700' : '500'
+                boxShadow: isActive ? (isDark ? '0 0 15px rgba(14, 165, 233, 0.4)' : '0 4px 12px rgba(14, 165, 233, 0.1)') : 'none',
+                fontWeight: isActive ? '700' : '600'
               }}
             >
               {!isActive && <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.3)' }} />}
