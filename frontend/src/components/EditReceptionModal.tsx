@@ -247,9 +247,10 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                 <label className="text-slate-700 dark:text-gray-400 text-xs font-bold mr-1">تاريخ الاستلام</label>
                 <input 
                   type="date"
+                  lang="en-GB"
                   value={formData.date ? formData.date.split('T')[0] : ''}
                   onChange={e => setFormData({...formData, date: e.target.value})}
-                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500/30 outline-none transition-all"
+                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500/30 outline-none transition-all text-right font-mono"
                 />
               </div>
 

@@ -113,18 +113,20 @@ export const AdminProcedures = () => {
                     <label className="text-sm font-medium text-slate-700 dark:text-blue-200">من تاريخ</label>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={store.startDate}
                       onChange={(e) => store.setStartDate(e.target.value)}
-                      className="w-full bg-white/60 dark:bg-black/20 border border-slate-200/50 dark:border-white/10 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      className="w-full bg-white/60 dark:bg-black/20 border border-slate-200/50 dark:border-white/10 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-right font-mono"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700 dark:text-blue-200">إلى تاريخ</label>
                     <input
                       type="date"
+                      lang="en-GB"
                       value={store.endDate}
                       onChange={(e) => store.setEndDate(e.target.value)}
-                      className="w-full bg-white/60 dark:bg-black/20 border border-slate-200/50 dark:border-white/10 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      className="w-full bg-white/60 dark:bg-black/20 border border-slate-200/50 dark:border-white/10 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-right font-mono"
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">

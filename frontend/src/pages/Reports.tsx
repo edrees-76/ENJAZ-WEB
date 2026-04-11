@@ -213,9 +213,10 @@ export const Reports = () => {
             </label>
             <input
               type="date"
+              lang="en-GB"
               value={store.startDate}
               onChange={(e) => store.setStartDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-white/20 text-sm font-bold transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-4 py-3 rounded-xl border border-white/20 text-sm font-bold transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none text-right font-mono"
               style={{
                 background: 'var(--glass-bg, rgba(255,255,255,0.1))',
                 color: 'var(--text-main)',
@@ -229,9 +230,10 @@ export const Reports = () => {
             </label>
             <input
               type="date"
+              lang="en-GB"
               value={store.endDate}
               onChange={(e) => store.setEndDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-white/20 text-sm font-bold transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full px-4 py-3 rounded-xl border border-white/20 text-sm font-bold transition-all focus:ring-2 focus:ring-indigo-500 focus:outline-none text-right font-mono"
               style={{
                 background: 'var(--glass-bg, rgba(255,255,255,0.1))',
                 color: 'var(--text-main)',

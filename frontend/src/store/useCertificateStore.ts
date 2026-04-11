@@ -72,7 +72,7 @@ interface CertificateState {
   clearCertificates: () => void;
   fetchCertificateById: (id: number) => Promise<Certificate | null>;
   setSelectedCertificate: (cert: Certificate | null) => void;
-  createCertificate: (cert: Omit<Certificate, 'id' | 'certificateNumber'>) => Promise<boolean>;
+  createCertificate: (cert: Omit<Certificate, 'id' | 'certificateNumber'>) => Promise<Certificate | false>;
   updateCertificate: (id: number, certData: Partial<Certificate>) => Promise<boolean>;
   deleteCertificate: (id: number) => Promise<void>;
 }
@@ -162,7 +162,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
         certificates: [newCert, ...state.certificates],
         isLoading: false
       }));
-      return true;
+      return newCert;
     } catch (err: any) {
       set({ error: err.response?.data?.message || err.message, isLoading: false });
       return false;

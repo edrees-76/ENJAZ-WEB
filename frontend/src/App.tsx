@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
 import { Dashboard } from './pages/Dashboard';
 import { DashboardHome } from './pages/DashboardHome';
 import { Login } from './pages/Login';
@@ -8,6 +9,9 @@ import { Reports } from './pages/Reports';
 import { PrintPage } from './pages/PrintPage';
 import { DesignReview } from './pages/DesignReview';
 import { AdminProcedures } from './pages/AdminProcedures';
+import { Users } from './pages/Users';
+import { Help } from './pages/Help';
+const About = lazy(() => import('./pages/About').then(module => ({ default: module.About })));
 import { useAuthStore } from './store/useAuthStore';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -27,6 +31,13 @@ function App() {
           <Route path="certificates" element={<Certificates />} />
           <Route path="reports" element={<Reports />} />
           <Route path="procedures" element={<AdminProcedures />} />
+          <Route path="users" element={<Users />} />
+          <Route path="help" element={<Help />} />
+          <Route path="about" element={
+            <Suspense fallback={<div className="p-8 text-center animate-pulse">جاري تحميل واجهة التعريف...</div>}>
+              <About />
+            </Suspense>
+          } />
         </Route>
         <Route path="/print/certificate/:id" element={<ProtectedRoute><PrintPage /></ProtectedRoute>} />
       </Routes>

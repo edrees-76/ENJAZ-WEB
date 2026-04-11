@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using backend.Services;
+using System.Security.Claims;
 
 namespace backend.Controllers
 {
@@ -13,10 +12,19 @@ namespace backend.Controllers
     public class SamplesController : ControllerBase
     {
         private readonly EnjazDbContext _context;
+        private readonly IAuditLogService _audit;
 
-        public SamplesController(EnjazDbContext context)
+        public SamplesController(EnjazDbContext context, IAuditLogService audit)
         {
             _context = context;
+            _audit = audit;
+        }
+
+        private (int? userId, string? userName) GetCurrentUser()
+        {
+            var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var name = User.FindFirst("fullName")?.Value ?? User.FindFirst(ClaimTypes.Name)?.Value;
+            return (int.TryParse(idStr, out int id) ? id : null, name);
         }
 
         // GET: api/Samples
@@ -68,6 +76,13 @@ namespace backend.Controllers
             _context.SampleReceptions.Add(sampleReception);
             await _context.SaveChangesAsync();
 
+            // Audit Log
+            var (userId, userName) = GetCurrentUser();
+            await _audit.LogAsync(userId, userName, "استلام عينات جديدة",
+                $"تم استلام عينات جديدة — رقم الإخطار: {sampleReception.NotificationNumber ?? "—"} — رقم طلب التحليل: {sampleReception.AnalysisRequestNumber}",
+                referenceId: sampleReception.Id,
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
+
             return CreatedAtAction("GetSampleReception", new { id = sampleReception.Id }, sampleReception);
         }
 
@@ -89,6 +104,30 @@ namespace backend.Controllers
                 return NotFound();
             }
 
+            // ═══ Capture old values for change tracking ═══
+            var changes = new List<string>();
+            if (existingReception.AnalysisRequestNumber != sampleReception.AnalysisRequestNumber)
+                changes.Add($"رقم طلب التحليل من \"{existingReception.AnalysisRequestNumber}\" إلى \"{sampleReception.AnalysisRequestNumber}\"");
+            if (existingReception.NotificationNumber != sampleReception.NotificationNumber)
+                changes.Add($"رقم الإخطار من \"{existingReception.NotificationNumber ?? "—"}\" إلى \"{sampleReception.NotificationNumber ?? "—"}\"");
+            if (existingReception.DeclarationNumber != sampleReception.DeclarationNumber)
+                changes.Add($"رقم البيان من \"{existingReception.DeclarationNumber ?? "—"}\" إلى \"{sampleReception.DeclarationNumber ?? "—"}\"");
+            if (existingReception.Supplier != sampleReception.Supplier)
+                changes.Add($"المورد من \"{existingReception.Supplier ?? "—"}\" إلى \"{sampleReception.Supplier ?? "—"}\"");
+            if (existingReception.Sender != sampleReception.Sender)
+                changes.Add($"الجهة المرسلة من \"{existingReception.Sender}\" إلى \"{sampleReception.Sender}\"");
+            if (existingReception.Origin != sampleReception.Origin)
+                changes.Add($"المنشأ من \"{existingReception.Origin ?? "—"}\" إلى \"{sampleReception.Origin ?? "—"}\"");
+            if (existingReception.PolicyNumber != sampleReception.PolicyNumber)
+                changes.Add($"رقم البوليصة من \"{existingReception.PolicyNumber ?? "—"}\" إلى \"{sampleReception.PolicyNumber ?? "—"}\"");
+            if (existingReception.FinancialReceiptNumber != sampleReception.FinancialReceiptNumber)
+                changes.Add($"رقم الإيصال المالي من \"{existingReception.FinancialReceiptNumber ?? "—"}\" إلى \"{sampleReception.FinancialReceiptNumber ?? "—"}\"");
+            if (existingReception.CertificateType != sampleReception.CertificateType)
+                changes.Add($"نوع الشهادة من \"{existingReception.CertificateType}\" إلى \"{sampleReception.CertificateType}\"");
+
+            var oldNotification = existingReception.NotificationNumber ?? "—";
+            var oldAnalysis = existingReception.AnalysisRequestNumber;
+
             // Update basic properties
             existingReception.AnalysisRequestNumber = sampleReception.AnalysisRequestNumber;
             existingReception.NotificationNumber = sampleReception.NotificationNumber;
@@ -103,15 +142,14 @@ namespace backend.Controllers
             existingReception.UpdatedAt = DateTime.Now;
 
             // Update nested samples
-            // Clear existing samples from database
             _context.ReceptionSamples.RemoveRange(existingReception.Samples);
 
             if (sampleReception.Samples != null)
             {
                 foreach (var sample in sampleReception.Samples)
                 {
-                    sample.Id = 0; // Ensure new ID is generated
-                    sample.SampleReceptionId = id; // Explicitly link
+                    sample.Id = 0;
+                    sample.SampleReceptionId = id;
                     existingReception.Samples.Add(sample);
                 }
             }
@@ -119,6 +157,17 @@ namespace backend.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+
+                // Audit Log
+                var (userId, userName) = GetCurrentUser();
+                var changeDetails = changes.Count > 0 
+                    ? "تم تعديل: " + string.Join(" | ", changes)
+                    : "تم تعديل بيانات العينات الفرعية";
+                var details = $"{changeDetails} — رقم الإخطار: {oldNotification} — رقم طلب التحليل: {oldAnalysis}";
+                await _audit.LogAsync(userId, userName, "تعديل بيانات عينة",
+                    details,
+                    referenceId: id,
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -144,11 +193,20 @@ namespace backend.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSampleReception(int id)
         {
-            var sampleReception = await _context.SampleReceptions.FindAsync(id);
+            var sampleReception = await _context.SampleReceptions
+                .Include(r => r.Samples)
+                .FirstOrDefaultAsync(r => r.Id == id);
             if (sampleReception == null)
             {
                 return NotFound();
             }
+
+            // Audit Log before deletion
+            var (userId, userName) = GetCurrentUser();
+            await _audit.LogAsync(userId, userName, "حذف عينة",
+                $"تم حذف العينة رقم {sampleReception.Sequence} — المورد: {sampleReception.Supplier ?? "غير محدد"} — عدد العينات: {sampleReception.Samples.Count}",
+                referenceId: id,
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
 
             _context.SampleReceptions.Remove(sampleReception);
             await _context.SaveChangesAsync();

@@ -255,6 +255,10 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
       // Download the PDF blob
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      
+      // Open the PDF automatically in a new tab
+      window.open(url, '_blank');
+
       const a = document.createElement('a');
       a.href = url;
       const contentDisposition = res.headers.get('content-disposition');
@@ -264,7 +268,9 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      
+      // Delay revoking so the new tab can load it
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
 
       set({
         isGenerating: false,
@@ -313,13 +319,19 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+      
+      // Open the PDF automatically in a new tab
+      window.open(url, '_blank');
+
       const a = document.createElement('a');
       a.href = url;
       a.download = `${refNumber}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      
+      // Delay revoking so the new tab can load it
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err: any) {
       set({ error: err.message });
     }

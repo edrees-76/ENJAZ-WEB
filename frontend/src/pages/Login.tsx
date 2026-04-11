@@ -13,6 +13,8 @@ export const Login = () => {
     return localStorage.getItem('theme') === 'dark';
   });
   const [error, setError] = useState('');
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
   const login = useAuthStore((state) => state.login);
@@ -29,10 +31,29 @@ export const Login = () => {
     }
   }, [isDark]);
 
+  // Lockout countdown
+  useEffect(() => {
+    if (lockoutSeconds === null || lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          setError('');
+          setLockoutSeconds(null);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockoutSeconds) return;
     setIsLoading(true);
     setError('');
+    setRemainingAttempts(null);
     
     try {
       const response = await axios.post('http://localhost:5144/api/auth/login', { username, password });
@@ -43,10 +64,19 @@ export const Login = () => {
         localStorage.removeItem('savedUsername');
       }
 
-      login(response.data.token, response.data.username, response.data.role);
+      login(response.data);
       navigate('/');
-    } catch (err) {
-      setError('اسم المستخدم أو كلمة المرور غير صحيحة');
+    } catch (err: any) {
+      const data = err.response?.data;
+      if (err.response?.status === 429) {
+        // Rate limited
+        setError(data?.message || 'تم تجاوز الحد الأقصى للمحاولات');
+        setLockoutSeconds(data?.retryAfterSeconds || 300);
+        setRemainingAttempts(null);
+      } else {
+        setError(data?.message || 'اسم المستخدم أو كلمة المرور غير صحيحة');
+        setRemainingAttempts(data?.remainingAttempts ?? null);
+      }
     } finally {
       setIsLoading(false);
     }

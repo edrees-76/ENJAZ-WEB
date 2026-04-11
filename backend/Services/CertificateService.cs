@@ -63,6 +63,18 @@ namespace backend.Services
                     if (reception != null)
                     {
                         reception.Status = "تم إصدار شهادة";
+                        
+                        // Sync key fields from certificate back to sample reception
+                        if (!string.IsNullOrEmpty(certificate.FinancialReceiptNumber))
+                            reception.FinancialReceiptNumber = certificate.FinancialReceiptNumber;
+                        if (!string.IsNullOrEmpty(certificate.PolicyNumber))
+                            reception.PolicyNumber = certificate.PolicyNumber;
+                        if (!string.IsNullOrEmpty(certificate.DeclarationNumber))
+                            reception.DeclarationNumber = certificate.DeclarationNumber;
+                        if (!string.IsNullOrEmpty(certificate.NotificationNumber))
+                            reception.NotificationNumber = certificate.NotificationNumber;
+                        
+                        reception.UpdatedAt = DateTime.Now;
                         _context.SampleReceptions.Update(reception);
                     }
                 }

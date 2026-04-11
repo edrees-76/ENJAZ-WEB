@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 using backend.Services;
+using System.Security.Claims;
 
 namespace backend.Controllers
 {
@@ -17,21 +18,31 @@ namespace backend.Controllers
         private readonly EnjazDbContext _context;
         private readonly ReferralPdfService _pdfService;
         private readonly ILogger<AdminProceduresController> _logger;
+        private readonly IAuditLogService _audit;
         private readonly string _pdfStoragePath;
 
         public AdminProceduresController(
             EnjazDbContext context,
             ReferralPdfService pdfService,
-            ILogger<AdminProceduresController> logger)
+            ILogger<AdminProceduresController> logger,
+            IAuditLogService audit)
         {
             _context = context;
             _pdfService = pdfService;
             _logger = logger;
+            _audit = audit;
 
             // Store generated PDFs in a dedicated directory
             _pdfStoragePath = Path.Combine(
                 Directory.GetCurrentDirectory(), "GeneratedPdfs", "Referrals");
             Directory.CreateDirectory(_pdfStoragePath);
+        }
+
+        private (int? userId, string? userName) GetCurrentUser()
+        {
+            var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var name = User.FindFirst("fullName")?.Value ?? User.FindFirst(ClaimTypes.Name)?.Value;
+            return (int.TryParse(idStr, out int id) ? id : null, name);
         }
 
         // ═══════════════════════════════════════════════════
@@ -198,12 +209,18 @@ namespace backend.Controllers
 
                 await transaction.CommitAsync();
 
-                // 7. Audit log
+                // 8. Audit log (detailed)
+                var (auditUserId, auditUserName) = GetCurrentUser();
+                await _audit.LogAsync(auditUserId, auditUserName, "إصدار رسالة إحالة",
+                    $"تم إصدار إحالة لـ {request.SenderName} — عدد الشهادات: {certificates.Count}",
+                    referenceId: letter.Id,
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
+
                 _logger.LogInformation(
                     "Referral letter generated: {RefNumber} | Sender: {Sender} | Certificates: {Count} | By: {User}",
                     referenceNumber, request.SenderName, certificates.Count, letter.CreatedByName);
 
-                // 8. Return the PDF file
+                // 9. Return the PDF file
                 return File(pdfBytes, "application/pdf", $"{referenceNumber}.pdf");
             }
             catch (Exception ex)
@@ -313,6 +330,13 @@ namespace backend.Controllers
 
             letter.IsDeleted = true;
             await _context.SaveChangesAsync();
+
+            // Audit Log
+            var (userId, userName) = GetCurrentUser();
+            await _audit.LogAsync(userId, userName, "حذف رسالة إحالة",
+                $"تم حذف رسالة الإحالة {letter.ReferenceNumber} — الجهة: {letter.SenderName} — عدد الشهادات: {letter.CertificateCount}",
+                referenceId: id,
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
 
             _logger.LogInformation(
                 "Referral letter soft-deleted: {RefNumber} | By system action",

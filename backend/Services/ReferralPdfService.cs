@@ -42,125 +42,152 @@ namespace backend.Services
             ReferralLetter letter,
             List<ReferralCertificateDto> certificates)
         {
+            // Resolve asset paths
+            var assetsPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "frontend", "public", "assets");
+            var libyaLogoPath = Path.Combine(assetsPath, "logo_libya.png");
+            var centerLogoPath = Path.Combine(assetsPath, "logo_center.png");
+
             var document = Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    // Standard margins
-                    page.Margin(2.5f, Unit.Centimetre);
-                    page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Arial"));
+                    // Standard margin so content avoids the 8pt outer border; matching certificate padding
+                    page.Margin(25, Unit.Point);
+                    page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial").FontColor(Colors.Black));
                     page.ContentFromRightToLeft();
 
                     // ═══════════════════════════════════════
-                    // HEADER (Legacy Match)
+                    // BACKGROUND (Border 1pt)
                     // ═══════════════════════════════════════
-                    page.Header().Element(header =>
+                    page.Background()
+                        .Padding(8, Unit.Point)
+                        .Border(1)
+                        .BorderColor(Colors.Black)
+                        .Text(""); // Valid safe empty child
+
+                    // ═══════════════════════════════════════
+                    // HEADER & CONTENT
+                    // ═══════════════════════════════════════
+                    page.Content().PaddingTop(15).PaddingHorizontal(18).Column(col =>
                     {
-                        header.Column(col =>
+                        // HEADER SECTION (Matches Certificate exactly)
+                        col.Item().Row(row =>
                         {
-                            // Top row: text in center (logos would go left/right if images were loaded)
-                            col.Item().Row(row =>
+                            // Right side in RTL (Center Logo) - Increasted 30%
+                            if (File.Exists(centerLogoPath))
+                                row.ConstantItem(115).Height(115).AlignCenter().AlignMiddle()
+                                   .Container().MaxHeight(115).MaxWidth(115).Image(centerLogoPath);
+                            else
+                                row.ConstantItem(115);
+
+                            // Center Text (18pt bold)
+                            row.RelativeItem().AlignCenter().AlignMiddle().Column(c =>
                             {
-                                row.RelativeItem().AlignCenter().Column(c =>
-                                {
-                                    c.Item().Text("دولة ليبيا").FontSize(14).Bold().FontColor(Colors.Black);
-                                    c.Item().Text("مؤسسة الطاقة الذرية").FontSize(14).Bold().FontColor(Colors.Black);
-                                    c.Item().Text("مركز القياسات الإشعاعية والتدريب").FontSize(14).Bold().FontColor(Colors.Black);
-                                });
+                                c.Spacing(6, Unit.Point);
+                                c.Item().AlignCenter().Text("دولة ليبيا").FontSize(18).Bold().FontColor(Colors.Black);
+                                c.Item().AlignCenter().Text("مؤسسة الطاقة الذرية").FontSize(18).Bold().FontColor(Colors.Black);
+                                c.Item().AlignCenter().Text("مركز القياسات الإشعاعية والتدريب").FontSize(18).Bold().FontColor(Colors.Black);
                             });
 
-                            // Date & Ref Number (Manual style)
-                            col.Item().PaddingTop(20).Text($"التاريخ: {letter.GeneratedAt:yyyy/MM/dd}")
-                                .FontSize(12).FontColor(Colors.Black);
-                                
-                            col.Item().PaddingTop(5).Text("رقم اشارى : .............................")
-                                .FontSize(12).FontColor(Colors.Black);
-
-                            col.Item().PaddingTop(15).LineHorizontal(1).LineColor(Colors.Black);
+                            // Left side in RTL (Coat of Arms)
+                            // Outer bounds remain 115 to preserve mathematical center, but visual element stays smaller (85)
+                            if (File.Exists(libyaLogoPath))
+                                row.ConstantItem(115).Height(115).AlignCenter().AlignMiddle()
+                                   .Container().MaxHeight(85).MaxWidth(85).Image(libyaLogoPath);
+                            else
+                                row.ConstantItem(115);
                         });
-                    });
 
-                    // ═══════════════════════════════════════
-                    // CONTENT (Legacy Match)
-                    // ═══════════════════════════════════════
-                    page.Content().Element(content =>
-                    {
-                        content.PaddingVertical(20).Column(col =>
+                        // Meta Data (Date / Ref)
+                        col.Item().PaddingTop(20).PaddingBottom(20).Row(row =>
                         {
-                            // Addressee
-                            col.Item().PaddingBottom(10).Text($"السادة/ {letter.SenderName}")
-                                .FontSize(14).Bold().FontColor(Colors.Black);
-
-                            // Greeting
-                            col.Item().PaddingBottom(15).Text("بعد التحية،،،")
-                                .FontSize(13).Bold().FontColor(Colors.Black);
-
-                            // Subject (Underlined, Bold)
-                            col.Item().PaddingBottom(15).Text(text => 
+                            row.RelativeItem(); // push to the left 
+                            row.ConstantItem(160).Column(c =>
                             {
-                                text.Span("الموضوع : احالة شهادات تحليل اشعاعى لعينات")
-                                    .FontSize(14).Bold().Underline().FontColor(Colors.Black);
+                                c.Item().Text($"التاريخ: {letter.GeneratedAt:yyyy/MM/dd}").FontSize(11).FontColor(Colors.Black);
+                                c.Item().Text("رقم إشارى : .........................").FontSize(11).FontColor(Colors.Black);
                             });
+                        });
 
-                            // Body text exactly as legacy
-                            col.Item().PaddingBottom(20).Text(
-                                "نحيل إلى حضرتكم شهادات التحليل الإشعاعي الخاصة بالعينات الموضحة بياناتها بالجدول المرفق، وذلك لغرض الاستلام والاطلاع واتخاذ ما يلزم حيالها وفق الإجراءات المعمول بها.")
-                                .FontSize(13).LineHeight(1.5f).FontColor(Colors.Black);
+                        // BODY CONTENT
+                        // Addressee
+                        col.Item().PaddingBottom(8).Text($"السادة/ {letter.SenderName}")
+                            .FontSize(13).Bold().FontColor(Colors.Black);
 
-                            // ═══ Dynamic Table (Legacy style columns) ═══
-                            if (certificates.Count > 0)
+                        // Greeting
+                        col.Item().PaddingBottom(12).Text("بعد التحية،،،")
+                            .FontSize(12).Bold().FontColor(Colors.Black);
+
+                        // Subject
+                        col.Item().AlignCenter().PaddingBottom(18).Text(text => 
+                        {
+                            text.Span("الموضوع : إحالة شهادات تحليل إشعاعي لعينات")
+                                .FontSize(13).Bold().FontColor(Colors.Black).Underline();
+                        });
+
+                        // Body text
+                        col.Item().PaddingBottom(20).Text(
+                            "نحيل إلى حضرتكم شهادات التحليل الإشعاعي الخاصة بالعينات الموضحة بياناتها بالجدول المرفق، وذلك لغرض الاستلام والاطلاع واتخاذ ما يلزم حيالها وفق الإجراءات المعمول بها.")
+                            .FontSize(12).LineHeight(1.5f).FontColor(Colors.Black).Justify();
+
+                        // ═══ Dynamic Table ═══
+                        if (certificates.Count > 0)
+                        {
+                            col.Item().Table(table =>
                             {
-                                col.Item().PaddingTop(10).Table(table =>
+                                var columns = GetActiveColumns(letter.IncludedColumns);
+
+                                table.ColumnsDefinition(colDef =>
                                 {
-                                    var columns = GetActiveColumns(letter.IncludedColumns);
-
-                                    // Define columns
-                                    table.ColumnsDefinition(colDef =>
-                                    {
-                                        colDef.ConstantColumn(35); // "#" Column
-                                        foreach (var c in columns)
-                                            colDef.RelativeColumn(c.Width);
-                                    });
-
-                                    // Header row
-                                    AddHeaderCell(table, "م");
+                                    colDef.ConstantColumn(30); // "#" Column
                                     foreach (var c in columns)
-                                        AddHeaderCell(table, c.Header);
-
-                                    // Data rows
-                                    for (int i = 0; i < certificates.Count; i++)
-                                    {
-                                        var cert = certificates[i];
-                                        var bg = i % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
-
-                                        AddDataCell(table, (i + 1).ToString(), bg);
-                                        foreach (var c in columns)
-                                            AddDataCell(table, c.GetValue(cert), bg);
-                                    }
+                                        colDef.RelativeColumn(c.Width);
                                 });
-                            }
 
-                            // Signature area (Recipient only on the left side)
-                            col.Item().PaddingTop(50).Row(row =>
-                            {
-                                row.RelativeItem(); // push to the left 
-                                row.RelativeItem().AlignLeft().Column(c =>
+                                // Header row
+                                AddHeaderCell(table, "م");
+                                foreach (var c in columns)
+                                    AddHeaderCell(table, c.Header);
+
+                                // Data rows
+                                for (int i = 0; i < certificates.Count; i++)
                                 {
-                                    c.Item().PaddingBottom(15).Text("اسم المستلم: .........................")
-                                        .FontSize(12).FontColor(Colors.Black);
-                                    c.Item().Text("الـــتوقـــيع: ..........................")
-                                        .FontSize(12).FontColor(Colors.Black);
-                                });
+                                    var cert = certificates[i];
+                                    AddDataCell(table, (i + 1).ToString());
+                                    foreach (var c in columns)
+                                        AddDataCell(table, c.GetValue(cert));
+                                }
+                            });
+                        }
+
+                        // Signature area
+                        col.Item().PaddingTop(50).Row(row =>
+                        {
+                            row.RelativeItem(); // push to the left 
+                            row.ConstantItem(250).Column(c =>
+                            {
+                                c.Item().PaddingBottom(10).Text("اسم المستلم: .......................................")
+                                    .FontSize(11).FontColor(Colors.Black);
+                                c.Item().Text("الـــتوقـــيع: ........................................")
+                                    .FontSize(11).FontColor(Colors.Black);
                             });
                         });
                     });
 
                     // ═══════════════════════════════════════
-                    // FOOTER (Legacy Match)
+                    // FOOTER (Official Design - No line)
                     // ═══════════════════════════════════════
-                    page.Footer().PaddingBottom(10).AlignCenter().Text("طرابلس - خلة الفرجان - 8 كم طريق قصر بن غشير info@crmt.ly WWW.CRMT.LY +218921151020")
-                        .FontSize(9).FontColor(Colors.Black);
+                    page.Footer().PaddingBottom(10).AlignCenter().Text(text =>
+                    {
+                        text.Span("طرابلس - خلة الفرجان - 8 كم طريق قصر بن غشير").FontSize(9);
+                        text.Span(" | ").FontSize(9).Bold();
+                        text.Span("+218921151020").FontSize(9);
+                        text.Span(" | ").FontSize(9).Bold();
+                        text.Span("WWW.CRMT.LY").FontSize(9);
+                        text.Span(" | ").FontSize(9).Bold();
+                        text.Span("info@crmt.ly").FontSize(9);
+                    });
                 });
             });
 
@@ -198,18 +225,18 @@ namespace backend.Services
 
         private void AddHeaderCell(TableDescriptor table, string text)
         {
-            table.Cell().Background(Colors.Grey.Lighten2)
-                .Border(1).BorderColor(Colors.Black)
-                .PaddingVertical(6).PaddingHorizontal(2).AlignCenter()
-                .Text(text).FontSize(11).Bold().FontColor(Colors.Black);
+            table.Cell().Background(Colors.Grey.Lighten3)
+                .Border(0.5f).BorderColor(Colors.Black)
+                .PaddingVertical(5).PaddingHorizontal(2).AlignCenter()
+                .Text(text).FontSize(10).Bold().FontColor(Colors.Black);
         }
 
-        private void AddDataCell(TableDescriptor table, string text, string bgColor)
+        private void AddDataCell(TableDescriptor table, string text)
         {
-            table.Cell().Background(bgColor)
-                .Border(1).BorderColor(Colors.Black)
-                .PaddingVertical(5).PaddingHorizontal(2).AlignCenter()
-                .Text(text ?? "").FontSize(11).FontColor(Colors.Black);
+            table.Cell().Background(Colors.White)
+                .Border(0.5f).BorderColor(Colors.Black)
+                .PaddingVertical(4).PaddingHorizontal(2).AlignCenter()
+                .Text(text ?? "").FontSize(10).FontColor(Colors.Black);
         }
 
         private record ReferralColumnDef(

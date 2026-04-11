@@ -5,6 +5,7 @@ import { Menu, Clock, CalendarDays } from 'lucide-react';
 import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Outlet, useLocation } from 'react-router-dom';
+import { useSessionTimeout } from '../hooks/useSessionTimeout';
 
 const DateTimeWidget = ({ username }: { username: string }) => {
   const [time, setTime] = useState(new Date());
@@ -55,6 +56,9 @@ export const Dashboard = () => {
   const toggleSidebar = useUIStore(state => state.toggleSidebar);
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+
+  // Session timeout — auto-logout after 20 minutes of inactivity
+  useSessionTimeout();
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {

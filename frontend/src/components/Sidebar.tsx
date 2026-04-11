@@ -4,18 +4,9 @@ import {
   FileText, Users, Settings, LogOut, LayoutDashboard, 
   Beaker, ShieldAlert, BarChart3, HelpCircle, Info, ChevronRight, Moon, Sun
 } from 'lucide-react';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, Permission } from '../store/useAuthStore';
 import { useUIStore } from '../store/useUIStore';
-
-const navigation = [
-  { name: 'الرئيسية', icon: LayoutDashboard, path: '/' },
-  { name: 'استلام العينات', icon: Beaker, path: '/samples' },
-  { name: 'الشهادات', icon: FileText, path: '/certificates' },
-  { name: 'التقارير', icon: BarChart3, path: '/reports' },
-  { name: 'الإجراءات الإدارية', icon: ShieldAlert, path: '/procedures' },
-  { name: 'المستخدمين', icon: Users, path: '/users' },
-  { name: 'الإعدادات', icon: Settings, path: '/settings' },
-];
+import { ProtectedElement } from './ProtectedElement';
 
 const bottomNavigation = [
   { name: 'مركز المساعدة', icon: HelpCircle, path: '/help' },
@@ -23,28 +14,23 @@ const bottomNavigation = [
 ];
 
 export const Sidebar = () => {
+  const navigation = [
+    { name: 'الرئيسية', icon: LayoutDashboard, path: '/' },
+    { name: 'استلام العينات', icon: Beaker, path: '/samples', permission: Permission.SampleReceptions },
+    { name: 'الشهادات', icon: FileText, path: '/certificates', permission: Permission.Certificates },
+    { name: 'التقارير', icon: BarChart3, path: '/reports', permission: Permission.Reports },
+    { name: 'الإجراءات الإدارية', icon: ShieldAlert, path: '/procedures', permission: Permission.AdminProcedures },
+    { name: 'المستخدمين', icon: Users, path: '/users', permission: Permission.Users },
+    { name: 'الإعدادات', icon: Settings, path: '/settings', permission: Permission.Settings },
+  ];
+
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
-  const { isSidebarCollapsed, toggleSidebar, isLocked } = useUIStore();
+  const { isSidebarCollapsed, toggleSidebar, isLocked, isDark, toggleTheme } = useUIStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showNavigationBlocked, setShowNavigationBlocked] = useState(false);
-
-  // Theme state
-  const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem('theme') === 'dark';
-  });
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
 
     const attemptNavigation = (path: string) => {
     if (isLocked) {
@@ -113,30 +99,31 @@ export const Sidebar = () => {
         {navigation.map((item) => {
           const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
           return (
-             <button
-              key={item.name}
-              onClick={() => attemptNavigation(item.path)}
-              className={`w-full flex items-center py-2.5 px-3 rounded-2xl transition-all duration-300 group relative overflow-hidden`}
-              style={{ 
-                color: isActive ? (isDark ? '#f8fafc' : '#0369a1') : (isDark ? 'rgba(255,255,255,0.6)' : '#334155'),
-                backgroundColor: isActive ? (isDark ? 'rgba(14, 165, 233, 0.15)' : 'rgba(14, 165, 233, 0.08)') : 'transparent',
-                borderColor: isActive ? (isDark ? '#0ea5e9' : 'rgba(14, 165, 233, 0.2)') : 'transparent',
-                borderWidth: '1px',
-                boxShadow: isActive ? (isDark ? '0 0 15px rgba(14, 165, 233, 0.4)' : '0 4px 12px rgba(14, 165, 233, 0.1)') : 'none',
-                fontWeight: isActive ? '700' : '600'
-              }}
-            >
-              {!isActive && <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.3)' }} />}
-              
-              <item.icon 
-                className={`h-4 w-4 transition-transform ml-3 ${isActive ? 'scale-110' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`} 
+             <ProtectedElement key={item.name} permission={item.permission}>
+               <button
+                onClick={() => attemptNavigation(item.path)}
+                className={`w-full flex items-center py-2.5 px-3 rounded-2xl transition-all duration-300 group relative overflow-hidden`}
                 style={{ 
-                  color: isActive ? (isDark ? '#38bdf8' : '#0ea5e9') : 'currentColor',
-                  filter: isActive && isDark ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.8))' : 'none'
-                }} 
-              />
-              <span className={`relative z-10 text-[13px] transition-all duration-300 ${isActive ? '' : 'opacity-80'}`}>{item.name}</span>
-            </button>
+                  color: isActive ? (isDark ? '#f8fafc' : '#0369a1') : (isDark ? 'rgba(255,255,255,0.6)' : '#334155'),
+                  backgroundColor: isActive ? (isDark ? 'rgba(14, 165, 233, 0.15)' : 'rgba(14, 165, 233, 0.08)') : 'transparent',
+                  borderColor: isActive ? (isDark ? '#0ea5e9' : 'rgba(14, 165, 233, 0.2)') : 'transparent',
+                  borderWidth: '1px',
+                  boxShadow: isActive ? (isDark ? '0 0 15px rgba(14, 165, 233, 0.4)' : '0 4px 12px rgba(14, 165, 233, 0.1)') : 'none',
+                  fontWeight: isActive ? '700' : '600'
+                }}
+              >
+                {!isActive && <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.3)' }} />}
+                
+                <item.icon 
+                  className={`h-4 w-4 transition-transform ml-3 ${isActive ? 'scale-110' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`} 
+                  style={{ 
+                    color: isActive ? (isDark ? '#38bdf8' : '#0ea5e9') : 'currentColor',
+                    filter: isActive && isDark ? 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.8))' : 'none'
+                  }} 
+                />
+                <span className={`relative z-10 text-[13px] transition-all duration-300 ${isActive ? '' : 'opacity-80'}`}>{item.name}</span>
+              </button>
+            </ProtectedElement>
           );
         })}
 
@@ -166,7 +153,7 @@ export const Sidebar = () => {
         })}
 
         <button 
-          onClick={() => setIsDark(!isDark)}
+          onClick={toggleTheme}
           className="w-full flex items-center justify-between py-2 px-3 rounded-xl transition-all duration-300 group"
           style={{ color: 'var(--text-main)' }}
         >

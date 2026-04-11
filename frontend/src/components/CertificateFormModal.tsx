@@ -177,14 +177,26 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     } as Certificate;
 
     let success = false;
+    let newCertId: number | null = null;
     if (certificate?.id) {
        success = await updateCertificate(certificate.id, finalData);
     } else {
-       success = await createCertificate(finalData);
+       const result = await createCertificate(finalData);
+       if (result) {
+         success = true;
+         newCertId = result.id;
+       }
     }
 
     setIsSubmitting(false);
-    if (success) onClose();
+    if (success) {
+      onClose();
+      
+      // Open the print page automatically for newly created certificates
+      if (newCertId) {
+        window.open(`/print/certificate/${newCertId}?pdf=true`, '_blank');
+      }
+    }
   };
 
   if (!isOpen) return null;

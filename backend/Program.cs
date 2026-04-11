@@ -1,4 +1,6 @@
 using backend.Data;
+using backend.Services;
+using backend.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -7,7 +9,9 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database: SQLite for Development, PostgreSQL for Production
+// ═══════════════════════════════════════════════
+// Database Configuration
+// ═══════════════════════════════════════════════
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddDbContext<EnjazDbContext>(options =>
@@ -19,61 +23,108 @@ else
         options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 }
 
-builder.Services.AddScoped<backend.Services.ICertificateService, backend.Services.CertificateService>();
-builder.Services.AddScoped<backend.Services.ReportService>();
-builder.Services.AddScoped<backend.Services.ExcelExportService>();
-builder.Services.AddScoped<backend.Services.PdfExportService>();
-builder.Services.AddScoped<backend.Services.ReferralPdfService>();
+// ═══════════════════════════════════════════════
+// Application Services Registration
+// ═══════════════════════════════════════════════
 
+// Existing services
+builder.Services.AddScoped<ICertificateService, CertificateService>();
+builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<ExcelExportService>();
+builder.Services.AddScoped<PdfExportService>();
+builder.Services.AddScoped<ReferralPdfService>();
+
+// User Management services
+builder.Services.AddSingleton<PasswordService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+
+// Rate Limiting — IMemoryCache-based (swappable to Redis)
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ILoginRateLimiter, MemoryCacheRateLimiter>();
+
+// ═══════════════════════════════════════════════
+// CORS Configuration
+// ═══════════════════════════════════════════════
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        policy
+            .WithOrigins("http://localhost:5173", "http://localhost:3000")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // Required for HttpOnly cookies
     });
 });
 
+// ═══════════════════════════════════════════════
+// JWT Authentication (Access Token: 30 minutes)
+// ═══════════════════════════════════════════════
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is missing from configuration. It is required for security.");
+        var jwtKey = builder.Configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT Key is missing from configuration.");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            ClockSkew = TimeSpan.FromSeconds(30), // Reduced from default 5 minutes
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
+// ═══════════════════════════════════════════════
+// Authorization Policies
+// ═══════════════════════════════════════════════
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("AdminOnly", p => p.RequireRole("Admin"))
+    .AddPolicy("UserOrAdmin", p => p.RequireRole("User", "Admin"));
+
+// ═══════════════════════════════════════════════
+// Controllers + JSON Options
+// ═══════════════════════════════════════════════
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Auto-apply pending migrations at startup
-if (app.Environment.IsDevelopment())
+// ═══════════════════════════════════════════════
+// Startup Initialization
+// ═══════════════════════════════════════════════
+using (var scope = app.Services.CreateScope())
 {
-    using (var scope = app.Services.CreateScope())
+    var db = scope.ServiceProvider.GetRequiredService<EnjazDbContext>();
+
+    if (app.Environment.IsDevelopment())
     {
-        var db = scope.ServiceProvider.GetRequiredService<EnjazDbContext>();
-        // Use Migrate instead of EnsureCreated to keep EF Migrations History in sync
+        // Auto-apply pending migrations at startup
         db.Database.Migrate();
     }
+
+    // Ensure default admin exists
+    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+    await userService.EnsureDefaultAdminAsync();
 }
 
-// Configure the HTTP request pipeline.
+// ═══════════════════════════════════════════════
+// HTTP Pipeline
+// ═══════════════════════════════════════════════
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -84,6 +135,9 @@ app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Log mutating actions globally
+app.UseGlobalAuditLogging();
 
 app.MapControllers();
 

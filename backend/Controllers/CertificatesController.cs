@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 using backend.Services;
+using System.Security.Claims;
 
 namespace backend.Controllers
 {
@@ -16,12 +17,21 @@ namespace backend.Controllers
         private readonly EnjazDbContext _context;
         private readonly ICertificateService _certificateService;
         private readonly ILogger<CertificatesController> _logger;
+        private readonly IAuditLogService _audit;
 
-        public CertificatesController(EnjazDbContext context, ICertificateService certificateService, ILogger<CertificatesController> logger)
+        public CertificatesController(EnjazDbContext context, ICertificateService certificateService, ILogger<CertificatesController> logger, IAuditLogService audit)
         {
             _context = context;
             _certificateService = certificateService;
             _logger = logger;
+            _audit = audit;
+        }
+
+        private (int? userId, string? userName) GetCurrentUser()
+        {
+            var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var name = User.FindFirst("fullName")?.Value ?? User.FindFirst(ClaimTypes.Name)?.Value;
+            return (int.TryParse(idStr, out int id) ? id : null, name);
         }
 
         [HttpGet]
@@ -73,6 +83,14 @@ namespace backend.Controllers
                     .Include(c => c.Samples)
                     .Include(c => c.SampleReception)
                     .FirstOrDefaultAsync(c => c.Id == createdCert.Id);
+
+                // Audit Log
+                var (userId, userName) = GetCurrentUser();
+                await _audit.LogAsync(userId, userName, "إصدار شهادة جديدة",
+                    $"تم إصدار شهادة رقم {createdCert.CertificateNumber}",
+                    referenceId: createdCert.Id,
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
+
                 return CreatedAtAction(nameof(GetCertificates), new { id = createdCert.Id }, fullCert);
             }
             catch (Exception ex)
@@ -101,6 +119,35 @@ namespace backend.Controllers
             {
                 return NotFound();
             }
+
+            // ═══ Capture old values for change tracking ═══
+            var changes = new List<string>();
+            if (existingCert.CertificateType != certificate.CertificateType)
+                changes.Add($"نوع الشهادة من \"{existingCert.CertificateType}\" إلى \"{certificate.CertificateType}\"");
+            if (existingCert.Sender != certificate.Sender)
+                changes.Add($"الجهة المرسلة من \"{existingCert.Sender ?? "—"}\" إلى \"{certificate.Sender ?? "—"}\"");
+            if (existingCert.Supplier != certificate.Supplier)
+                changes.Add($"المورد من \"{existingCert.Supplier ?? "—"}\" إلى \"{certificate.Supplier ?? "—"}\"");
+            if (existingCert.Origin != certificate.Origin)
+                changes.Add($"المنشأ من \"{existingCert.Origin ?? "—"}\" إلى \"{certificate.Origin ?? "—"}\"");
+            if (existingCert.AnalysisType != certificate.AnalysisType)
+                changes.Add($"نوع التحليل من \"{existingCert.AnalysisType ?? "—"}\" إلى \"{certificate.AnalysisType ?? "—"}\"");
+            if (existingCert.DeclarationNumber != certificate.DeclarationNumber)
+                changes.Add($"رقم البيان من \"{existingCert.DeclarationNumber ?? "—"}\" إلى \"{certificate.DeclarationNumber ?? "—"}\"");
+            if (existingCert.NotificationNumber != certificate.NotificationNumber)
+                changes.Add($"رقم الإخطار من \"{existingCert.NotificationNumber ?? "—"}\" إلى \"{certificate.NotificationNumber ?? "—"}\"");
+            if (existingCert.PolicyNumber != certificate.PolicyNumber)
+                changes.Add($"رقم البوليصة من \"{existingCert.PolicyNumber ?? "—"}\" إلى \"{certificate.PolicyNumber ?? "—"}\"");
+            if (existingCert.SpecialistName != certificate.SpecialistName)
+                changes.Add($"الأخصائي من \"{existingCert.SpecialistName ?? "—"}\" إلى \"{certificate.SpecialistName ?? "—"}\"");
+            if (existingCert.SectionHeadName != certificate.SectionHeadName)
+                changes.Add($"رئيس القسم من \"{existingCert.SectionHeadName ?? "—"}\" إلى \"{certificate.SectionHeadName ?? "—"}\"");
+            if (existingCert.ManagerName != certificate.ManagerName)
+                changes.Add($"المدير من \"{existingCert.ManagerName ?? "—"}\" إلى \"{certificate.ManagerName ?? "—"}\"");
+            if (existingCert.Notes != certificate.Notes)
+                changes.Add($"الملاحظات من \"{existingCert.Notes ?? "—"}\" إلى \"{certificate.Notes ?? "—"}\"");
+
+            var certNumber = existingCert.CertificateNumber;
 
             // Update fields
             existingCert.CertificateType = certificate.CertificateType;
@@ -161,6 +208,18 @@ namespace backend.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+
+                // Audit Log
+                var (userId, userName) = GetCurrentUser();
+                var changeDetails = changes.Count > 0 
+                    ? "تم تعديل: " + string.Join(" | ", changes)
+                    : "تم تعديل بيانات العينات";
+                var details = $"{changeDetails} — رقم الشهادة: {certNumber}";
+                await _audit.LogAsync(userId, userName, "تعديل شهادة",
+                    details,
+                    referenceId: id,
+                    ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
+
                 return Ok(existingCert);
             }
             catch (Exception ex)
