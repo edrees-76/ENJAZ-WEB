@@ -32,11 +32,14 @@ export const Sidebar = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showNavigationBlocked, setShowNavigationBlocked] = useState(false);
 
-    const attemptNavigation = (path: string) => {
+  const attemptNavigation = (path: string) => {
     if (isLocked) {
       setShowNavigationBlocked(true);
     } else {
       navigate(path);
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        useUIStore.getState().setSidebarCollapsed(true);
+      }
     }
   };
 
@@ -55,8 +58,16 @@ export const Sidebar = () => {
 
    return (
     <>
+    {/* Mobile Backdrop Overlay */}
+    {!isSidebarCollapsed && (
+      <div 
+        className="md:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] transition-opacity duration-300"
+        onClick={toggleSidebar}
+      />
+    )}
+    
     <aside 
-      className={`relative rounded-[2rem] border shadow-2xl transition-all duration-500 hidden md:flex flex-col h-[calc(100vh-2rem)] my-4 mr-4 shrink-0 z-50 ${isSidebarCollapsed ? 'w-0 opacity-0 pointer-events-none -translate-x-12' : 'w-[240px] opacity-100 translate-x-0'}`}
+      className={`fixed md:relative right-0 rounded-[2rem] border shadow-2xl transition-all duration-500 flex flex-col h-[calc(100vh-2rem)] my-4 mr-4 shrink-0 z-[100] md:z-50 ${isSidebarCollapsed ? 'w-0 opacity-0 pointer-events-none -translate-x-12 md:-translate-x-12' : 'w-[260px] md:w-[240px] opacity-100 translate-x-0'}`}
       style={{
         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)',
         background: isDark 

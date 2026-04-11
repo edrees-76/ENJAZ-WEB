@@ -25,6 +25,11 @@ namespace backend.Data
         public DbSet<Models.AuditLog> AuditLogs { get; set; }
         public DbSet<Models.RefreshToken> RefreshTokens { get; set; }
 
+        // Settings & System Management
+        public DbSet<Models.SystemSettings> SystemSettings { get; set; }
+        public DbSet<Models.UserSettings> UserSettings { get; set; }
+        public DbSet<Models.SystemLock> SystemLocks { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ═══════════════════════════════════════════════
@@ -134,6 +139,23 @@ namespace backend.Data
             // Soft Delete Global Query Filter
             modelBuilder.Entity<Models.ReferralLetter>()
                 .HasQueryFilter(r => !r.IsDeleted);
+
+            // ═══════════════════════════════════════════════
+            // Settings Configuration
+            // ═══════════════════════════════════════════════
+            modelBuilder.Entity<Models.UserSettings>(entity =>
+            {
+                entity.HasIndex(us => us.UserId).IsUnique();
+                entity.HasOne(us => us.User)
+                    .WithOne()
+                    .HasForeignKey<Models.UserSettings>(us => us.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Models.SystemLock>(entity =>
+            {
+                entity.HasKey(sl => sl.Name);
+            });
         }
     }
 }

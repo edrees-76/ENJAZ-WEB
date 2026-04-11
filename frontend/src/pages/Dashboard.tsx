@@ -6,6 +6,7 @@ import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 const DateTimeWidget = ({ username }: { username: string }) => {
   const [time, setTime] = useState(new Date());
@@ -56,9 +57,37 @@ export const Dashboard = () => {
   const toggleSidebar = useUIStore(state => state.toggleSidebar);
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+  
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
 
-  // Session timeout — auto-logout after 20 minutes of inactivity
+  useEffect(() => {
+    if (sessionStorage.getItem('showWelcome') === 'true') {
+      setShowWelcomeMessage(true);
+      sessionStorage.removeItem('showWelcome');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showWelcomeMessage) {
+      const timer = setTimeout(() => setShowWelcomeMessage(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showWelcomeMessage]);
+
+  // Session timeout — auto-logout after 10 minutes of inactivity
   useSessionTimeout();
+
+  // Font Size Activation
+  const fetchUserSettings = useSettingsStore(state => state.fetchUserSettings);
+  const fontSizeScale = useSettingsStore(state => state.userSettings?.fontSizeScale ?? 1.0);
+
+  useEffect(() => {
+    fetchUserSettings();
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${16 * fontSizeScale}px`;
+  }, [fontSizeScale]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -112,6 +141,27 @@ export const Dashboard = () => {
           </ErrorBoundary>
         </div>
       </main>
+
+      {/* Professional Welcome Overlay */}
+      {showWelcomeMessage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-in fade-in duration-500"
+             style={{ background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(8px)' }}>
+          <div className="flex flex-col items-center justify-center gap-5 p-12 rounded-[3rem] shadow-[0_30px_60px_rgba(0,0,0,0.4)] animate-in zoom-in-95 duration-500 border border-white/20 bg-white/95 dark:bg-slate-900/95"
+               style={{ 
+                 backdropFilter: 'blur(25px)'
+               }}>
+            <div className="w-24 h-24 flex items-center justify-center mb-2">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain animate-pulse" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-3xl font-black mb-2" style={{ color: 'var(--text-main)' }}>مرحباً بك مجدداً</h2>
+              <p className="text-xl font-bold opacity-80" style={{ color: 'var(--text-main)' }}>
+                 {user?.username}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

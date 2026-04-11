@@ -11,6 +11,7 @@ import { DesignReview } from './pages/DesignReview';
 import { AdminProcedures } from './pages/AdminProcedures';
 import { Users } from './pages/Users';
 import { Help } from './pages/Help';
+import { Settings } from './pages/Settings';
 const About = lazy(() => import('./pages/About').then(module => ({ default: module.About })));
 import { useAuthStore } from './store/useAuthStore';
 
@@ -32,6 +33,7 @@ function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="procedures" element={<AdminProcedures />} />
           <Route path="users" element={<Users />} />
+          <Route path="settings" element={<Settings />} />
           <Route path="help" element={<Help />} />
           <Route path="about" element={
             <Suspense fallback={<div className="p-8 text-center animate-pulse">جاري تحميل واجهة التعريف...</div>}>

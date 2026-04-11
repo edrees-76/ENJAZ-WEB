@@ -2,12 +2,12 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 
-const TIMEOUT_MS = 20 * 60 * 1000;     // 20 دقيقة
+const TIMEOUT_MS = 10 * 60 * 1000;     // 10 دقائق
 const WARNING_MS = 2 * 60 * 1000;      // تحذير قبل دقيقتين
 const CHECK_INTERVAL = 60 * 1000;      // فحص كل دقيقة
 
 /**
- * Hook لانتهاء الجلسة تلقائياً بعد 20 دقيقة خمول
+ * Hook لانتهاء الجلسة تلقائياً بعد 10 دقائق خمول
  * يتتبع حركة الماوس ولوحة المفاتيح والنقرات
  */
 export const useSessionTimeout = () => {

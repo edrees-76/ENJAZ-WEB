@@ -65,6 +65,10 @@ export const Login = () => {
       }
 
       login(response.data);
+      
+      // تعيين علامة الترحيب لتعرضها لوحة القيادة
+      sessionStorage.setItem('showWelcome', 'true');
+
       navigate('/');
     } catch (err: any) {
       const data = err.response?.data;

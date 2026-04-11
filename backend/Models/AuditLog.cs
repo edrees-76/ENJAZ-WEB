@@ -39,6 +39,9 @@ namespace backend.Models
         [MaxLength(300)]
         public string? UserAgent { get; set; }
 
+        /// <summary>هل تم أرشفة هذا السجل (Soft Archive)</summary>
+        public bool IsArchived { get; set; } = false;
+
         // Navigation
         [JsonIgnore]
         public User? User { get; set; }

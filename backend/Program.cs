@@ -40,6 +40,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
+// Settings & System Management
+builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddHostedService<AutoBackupHostedService>();
+
 // Rate Limiting — IMemoryCache-based (swappable to Redis)
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<ILoginRateLimiter, MemoryCacheRateLimiter>();
