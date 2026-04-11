@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { GlassCard } from '../components/GlassCard';
+import { AlertsWidget } from '../components/AlertsWidget';
 import { Activity, FileText, CheckCircle, AlertTriangle, Search, Leaf, ShieldCheck, Box, Loader2, RefreshCw } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDashboardStore } from '../store/useDashboardStore';
@@ -90,6 +91,9 @@ export const DashboardHome = () => {
 
   return (
     <>
+      {/* Urgent Alerts Section */}
+      <AlertsWidget />
+
       {/* Section 1: Samples Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <GlassCard className="flex items-center space-x-4 space-x-reverse transition-transform hover:-translate-y-1 hover:shadow-xl">

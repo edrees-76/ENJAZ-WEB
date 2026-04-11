@@ -42,7 +42,9 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Settings & System Management
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddHostedService<AutoBackupHostedService>();
+builder.Services.AddHostedService<backend.BackgroundServices.AlertBackgroundService>();
 
 // Rate Limiting — IMemoryCache-based (swappable to Redis)
 builder.Services.AddMemoryCache();
@@ -83,6 +85,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+
+        // SignalR WebSocket Auth: Browser WebSocket API cannot send Authorization headers,
+        // so the token is passed via query string (?access_token=xxx).
+        // Path narrowed to /hubs/alerts to minimize attack surface.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken)
+                    && path.StartsWithSegments("/hubs/alerts"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // ═══════════════════════════════════════════════
@@ -105,6 +125,7 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -144,5 +165,6 @@ app.UseAuthorization();
 app.UseGlobalAuditLogging();
 
 app.MapControllers();
+app.MapHub<backend.Hubs.AlertHub>("/hubs/alerts/v1");
 
 app.Run();

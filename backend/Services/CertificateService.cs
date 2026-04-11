@@ -12,10 +12,12 @@ namespace backend.Services
     public class CertificateService : ICertificateService
     {
         private readonly EnjazDbContext _context;
+        private readonly IAlertService _alertService;
 
-        public CertificateService(EnjazDbContext context)
+        public CertificateService(EnjazDbContext context, IAlertService alertService)
         {
             _context = context;
+            _alertService = alertService;
         }
 
         public async Task<Certificate> CreateCertificateAsync(Certificate certificate)
@@ -81,6 +83,13 @@ namespace backend.Services
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // M6: حل التنبيه بعد نجاح المعاملة — يمنع حالة split-brain
+                // (تنبيه محلول + شهادة لم تُنشأ إذا فشل الـ Commit)
+                if (certificate.SampleReceptionId.HasValue)
+                {
+                    await _alertService.ResolveAlertsForSampleAsync(certificate.SampleReceptionId.Value);
+                }
 
                 return certificate;
             }

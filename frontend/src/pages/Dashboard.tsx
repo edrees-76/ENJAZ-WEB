@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { NotificationBell } from '../components/NotificationBell';
 
 const DateTimeWidget = ({ username }: { username: string }) => {
   const [time, setTime] = useState(new Date());
@@ -128,7 +129,8 @@ export const Dashboard = () => {
              )}
           </div>
           {isHomePage && (
-            <div className="flex-1 flex justify-end">
+            <div className="flex-1 flex justify-end items-center gap-4">
+               <NotificationBell />
                <DateTimeWidget username={user?.username || 'مدير النظام'} />
             </div>
           )}

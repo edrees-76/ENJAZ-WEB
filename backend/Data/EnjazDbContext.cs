@@ -30,6 +30,10 @@ namespace backend.Data
         public DbSet<Models.UserSettings> UserSettings { get; set; }
         public DbSet<Models.SystemLock> SystemLocks { get; set; }
 
+        // Notifications & Alerts
+        public DbSet<Models.Alert> Alerts { get; set; }
+        public DbSet<Models.UserAlert> UserAlerts { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ═══════════════════════════════════════════════
@@ -155,6 +159,32 @@ namespace backend.Data
             modelBuilder.Entity<Models.SystemLock>(entity =>
             {
                 entity.HasKey(sl => sl.Name);
+            });
+
+            // ═══════════════════════════════════════════════
+            // Notification System Configuration
+            // ═══════════════════════════════════════════════
+            modelBuilder.Entity<Models.Alert>(entity =>
+            {
+                entity.HasIndex(a => a.UniqueKey).IsUnique(); // Idempotency
+                entity.HasIndex(a => a.CreatedAt);
+                entity.HasIndex(a => a.IsResolved);
+            });
+
+            modelBuilder.Entity<Models.UserAlert>(entity =>
+            {
+                entity.HasIndex(ua => new { ua.UserId, ua.AlertId }).IsUnique();
+                entity.HasIndex(ua => ua.IsRead);
+
+                entity.HasOne(ua => ua.User)
+                    .WithMany()
+                    .HasForeignKey(ua => ua.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ua => ua.Alert)
+                    .WithMany(a => a.UserAlerts)
+                    .HasForeignKey(ua => ua.AlertId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
