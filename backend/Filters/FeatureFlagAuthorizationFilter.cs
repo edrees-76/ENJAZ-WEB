@@ -32,8 +32,7 @@ namespace backend.Filters
                 return Task.CompletedTask;
             }
 
-            var user = context.HttpContext.User;
-            if (user == null || !user.Identity!.IsAuthenticated)
+            if (context.HttpContext.User?.Identity?.IsAuthenticated != true)
             {
                 context.Result = new UnauthorizedResult();
             }

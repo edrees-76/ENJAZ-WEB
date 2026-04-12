@@ -234,7 +234,6 @@ export default function ReceptionSearchModal({ isOpen, onClose, onSelect }: Rece
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              console.log('>>> CONFIRM BUTTON CLICKED. selectedId:', selectedId);
               if (selectedId) onSelect(selectedId);
             }}
             disabled={!selectedId}

@@ -5,8 +5,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import apiClient from '../services/apiClient';
 
 export const Login = () => {
-  const [username, setUsername] = useState(() => localStorage.getItem('savedUsername') || 'admin');
-  const [password, setPassword] = useState('admin');
+  const [username, setUsername] = useState(() => localStorage.getItem('savedUsername') || '');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('savedUsername') !== null);
   const [showPassword, setShowPassword] = useState(false);
   const [isDark, setIsDark] = useState(() => {
@@ -75,7 +75,7 @@ export const Login = () => {
       // Check if it's a network error (backend unreachable) → fallback to Demo Mode
       if (!err.response) {
         // 🚀 DEMO MODE FALLBACK: Backend not reachable, use mock data
-        console.log('⚡ Backend unreachable — switching to Demo Mode');
+        if (import.meta.env.DEV) console.debug('⚡ Backend unreachable — switching to Demo Mode');
         
         const mockResponse = {
           accessToken: 'demo_token_123456789',

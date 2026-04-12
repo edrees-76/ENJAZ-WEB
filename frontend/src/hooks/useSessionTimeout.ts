@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 const TIMEOUT_MS = 10 * 60 * 1000;     // 10 دقائق
 const WARNING_MS = 2 * 60 * 1000;      // تحذير قبل دقيقتين
-const CHECK_INTERVAL = 60 * 1000;      // فحص كل دقيقة
+
 
 /**
  * Hook لانتهاء الجلسة تلقائياً بعد 10 دقائق خمول
@@ -17,7 +17,7 @@ export const useSessionTimeout = () => {
   const navigate = useNavigate();
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const warningRef = useRef<ReturnType<typeof setTimeout>>();
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+
 
   const handleLogout = useCallback(async () => {
     await logout();

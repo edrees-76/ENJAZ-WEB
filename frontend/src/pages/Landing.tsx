@@ -223,7 +223,7 @@ export const Landing = () => {
 
         {/* 5. 🛡️ Security Section */}
         <section className="bg-gradient-to-br from-blue-100 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-200 dark:border-blue-500/20 rounded-[3rem] p-8 md:p-16 text-center space-y-8 relative overflow-hidden transition-colors duration-500 shadow-sm dark:shadow-none">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] dark:opacity-10" />
+          <div className="absolute inset-0 opacity-[0.03] dark:opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 0, transparent 50%)', backgroundSize: '10px 10px' }} />
           <Lock className="w-16 h-16 text-blue-600 dark:text-blue-400 mx-auto transition-colors duration-500" />
           <h2 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white transition-colors duration-500">أمان سيبراني يمكنك الوثوق به</h2>
           <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto transition-colors duration-500">

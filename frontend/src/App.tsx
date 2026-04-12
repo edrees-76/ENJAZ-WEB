@@ -62,6 +62,7 @@ function App() {
               } />
             </Route>
             <Route path="/print/certificate/:id" element={<ProtectedRoute><PrintPage /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </SignalRProvider>
