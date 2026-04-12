@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 export type CertificateType = 'بيئية' | 'استهلاكية';
 
@@ -87,7 +87,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
   fetchCertificates: async (page = 1, pageSize = 50) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get(`http://localhost:5144/api/certificates?page=${page}&pageSize=${pageSize}`);
+      const response = await apiClient.get(`/certificates?page=${page}&pageSize=${pageSize}`);
       // Handle the case where the backend might still return the old array format during hot reload,
       // or the new { totalCount, items } format.
       if (Array.isArray(response.data)) {
@@ -108,7 +108,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
   fetchCertificateById: async (id: number) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get(`http://localhost:5144/api/certificates/${id}`);
+      const response = await apiClient.get(`/certificates/${id}`);
       set({ isLoading: false });
       return response.data;
     } catch (err: any) {
@@ -155,7 +155,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
         }))
       };
 
-      const response = await axios.post('http://localhost:5144/api/certificates', backendData);
+      const response = await apiClient.post('/certificates', backendData);
       const newCert = response.data;
 
       set((state) => ({
@@ -172,7 +172,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
   updateCertificate: async (id, updatedData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.put(`http://localhost:5144/api/certificates/${id}`, updatedData);
+      const response = await apiClient.put(`/certificates/${id}`, updatedData);
       const updatedCert = response.data;
       set((state) => ({
         certificates: state.certificates.map(c => c.id === id ? updatedCert : c),
@@ -188,7 +188,7 @@ export const useCertificateStore = create<CertificateState>((set) => ({
   deleteCertificate: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      await axios.delete(`http://localhost:5144/api/certificates/${id}`);
+      await apiClient.delete(`/certificates/${id}`);
       set((state) => ({
         certificates: state.certificates.filter(c => c.id !== id),
         isLoading: false

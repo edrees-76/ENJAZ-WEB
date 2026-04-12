@@ -1,7 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
-
-const API_BASE = 'http://localhost:5144/api';
+import apiClient from '../services/apiClient';
 
 // ═══════════════════════════════════════════════
 // Types
@@ -111,7 +109,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   fetchUsers: async () => {
     set({ isLoading: true });
     try {
-      const { data } = await axios.get(`${API_BASE}/users`);
+      const { data } = await apiClient.get(`/users`);
       set({ users: data });
     } catch (err) {
       console.error('Failed to fetch users:', err);
@@ -122,7 +120,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   fetchStats: async () => {
     try {
-      const { data } = await axios.get(`${API_BASE}/users/stats`);
+      const { data } = await apiClient.get(`/users/stats`);
       set({ stats: data });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -131,7 +129,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   createUser: async (dto) => {
     try {
-      await axios.post(`${API_BASE}/users`, dto);
+      await apiClient.post(`/users`, dto);
       await get().fetchUsers();
       await get().fetchStats();
       return { success: true };
@@ -143,7 +141,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   updateUser: async (id, dto) => {
     try {
-      await axios.put(`${API_BASE}/users/${id}`, dto);
+      await apiClient.put(`/users/${id}`, dto);
       await get().fetchUsers();
       await get().fetchStats();
       return { success: true };
@@ -155,7 +153,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   toggleUserStatus: async (id) => {
     try {
-      await axios.patch(`${API_BASE}/users/${id}/toggle`);
+      await apiClient.patch(`/users/${id}/toggle`);
       await get().fetchUsers();
       await get().fetchStats();
       return { success: true };
@@ -169,7 +167,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
     try {
       const params: any = { username };
       if (excludeId) params.excludeId = excludeId;
-      const { data } = await axios.get(`${API_BASE}/users/check-username`, { params });
+      const { data } = await apiClient.get(`/users/check-username`, { params });
       return data.isUnique;
     } catch {
       return false;
@@ -185,7 +183,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
       if (filters.startDate) params.startDate = filters.startDate;
       if (filters.endDate) params.endDate = filters.endDate;
 
-      const { data } = await axios.get(`${API_BASE}/audit-logs`, { params });
+      const { data } = await apiClient.get(`/audit-logs`, { params });
       set({ auditLogs: data });
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
@@ -196,7 +194,7 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   fetchAuditStats: async () => {
     try {
-      const { data } = await axios.get(`${API_BASE}/audit-logs/stats`);
+      const { data } = await apiClient.get(`/audit-logs/stats`);
       set({ auditStats: data });
     } catch (err) {
       console.error('Failed to fetch audit stats:', err);

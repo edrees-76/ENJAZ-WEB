@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
@@ -9,6 +10,7 @@ namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class SamplesController : ControllerBase
     {
         private readonly EnjazDbContext _context;
@@ -29,12 +31,37 @@ namespace backend.Controllers
 
         // GET: api/Samples
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SampleReception>>> GetSampleReceptions()
+        public async Task<IActionResult> GetSampleReceptions(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromServices] IConfiguration config = null!)
         {
-            return await _context.SampleReceptions
+            var query = _context.SampleReceptions
                 .Include(r => r.Samples)
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
+                .OrderByDescending(r => r.CreatedAt);
+
+            var enablePagination = config?.GetValue<bool>("Features:EnablePagination") ?? false;
+
+            if (enablePagination)
+            {
+                var totalCount = await query.CountAsync();
+                var items = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    totalCount,
+                    items
+                });
+            }
+            else
+            {
+                // شكل التوافقية القديم (بدون تصفح)
+                var items = await query.ToListAsync();
+                return Ok(items);
+            }
         }
 
         // GET: api/Samples/5

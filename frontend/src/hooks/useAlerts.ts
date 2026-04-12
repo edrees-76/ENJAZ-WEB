@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 import { useAuthStore } from '../store/useAuthStore';
 
 // Types
@@ -16,8 +16,6 @@ export type Alert = {
   createdAt: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5144/api/v1';
-
 export const useAlerts = () => {
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.token);
@@ -26,9 +24,7 @@ export const useAlerts = () => {
   const { data: alerts = [], isLoading, error } = useQuery<Alert[]>({
     queryKey: ['alerts'],
     queryFn: async () => {
-      const resp = await axios.get(`${API_BASE}/alerts`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resp = await apiClient.get('/v1/alerts');
       return resp.data;
     },
     enabled: !!token,
@@ -38,9 +34,7 @@ export const useAlerts = () => {
   const { data: unreadCount = 0 } = useQuery<number>({
     queryKey: ['alerts', 'unread-count'],
     queryFn: async () => {
-      const resp = await axios.get(`${API_BASE}/alerts/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const resp = await apiClient.get('/v1/alerts/unread-count');
       return resp.data.count;
     },
     enabled: !!token,
@@ -49,9 +43,7 @@ export const useAlerts = () => {
   // Mark as Read Mutation
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {
-      await axios.post(`${API_BASE}/alerts/${id}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await apiClient.post(`/v1/alerts/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });

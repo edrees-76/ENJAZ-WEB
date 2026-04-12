@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
@@ -13,6 +14,7 @@ namespace backend.Controllers
     /// </summary>
     [Route("api/admin-procedures")]
     [ApiController]
+    [Authorize]
     public class AdminProceduresController : ControllerBase
     {
         private readonly EnjazDbContext _context;

@@ -21,7 +21,7 @@ export const useSessionTimeout = () => {
 
   const handleLogout = useCallback(async () => {
     await logout();
-    navigate('/login');
+    navigate('/');
   }, [logout, navigate]);
 
   const resetTimer = useCallback(() => {

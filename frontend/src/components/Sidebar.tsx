@@ -9,19 +9,19 @@ import { useUIStore } from '../store/useUIStore';
 import { ProtectedElement } from './ProtectedElement';
 
 const bottomNavigation = [
-  { name: 'مركز المساعدة', icon: HelpCircle, path: '/help' },
-  { name: 'عن المنظومة', icon: Info, path: '/about' },
+  { name: 'مركز المساعدة', icon: HelpCircle, path: '/app/help' },
+  { name: 'عن المنظومة', icon: Info, path: '/app/about' },
 ];
 
 export const Sidebar = () => {
   const navigation = [
-    { name: 'الرئيسية', icon: LayoutDashboard, path: '/' },
-    { name: 'استلام العينات', icon: Beaker, path: '/samples', permission: Permission.SampleReceptions },
-    { name: 'الشهادات', icon: FileText, path: '/certificates', permission: Permission.Certificates },
-    { name: 'التقارير', icon: BarChart3, path: '/reports', permission: Permission.Reports },
-    { name: 'الإجراءات الإدارية', icon: ShieldAlert, path: '/procedures', permission: Permission.AdminProcedures },
-    { name: 'المستخدمين', icon: Users, path: '/users', permission: Permission.Users },
-    { name: 'الإعدادات', icon: Settings, path: '/settings', permission: Permission.Settings },
+    { name: 'الرئيسية', icon: LayoutDashboard, path: '/app' },
+    { name: 'استلام العينات', icon: Beaker, path: '/app/samples', permission: Permission.SampleReceptions },
+    { name: 'الشهادات', icon: FileText, path: '/app/certificates', permission: Permission.Certificates },
+    { name: 'التقارير', icon: BarChart3, path: '/app/reports', permission: Permission.Reports },
+    { name: 'الإجراءات الإدارية', icon: ShieldAlert, path: '/app/procedures', permission: Permission.AdminProcedures },
+    { name: 'المستخدمين', icon: Users, path: '/app/users', permission: Permission.Users },
+    { name: 'الإعدادات', icon: Settings, path: '/app/settings', permission: Permission.Settings },
   ];
 
   const user = useAuthStore(state => state.user);
@@ -53,7 +53,7 @@ export const Sidebar = () => {
 
   const confirmLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   }
 
    return (

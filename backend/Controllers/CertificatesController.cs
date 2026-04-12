@@ -8,10 +8,9 @@ using System.Security.Claims;
 
 namespace backend.Controllers
 {
-    // Temporarily disabled authorization for testing. Uncomment when ready to enforce it.
-    // [Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CertificatesController : ControllerBase
     {
         private readonly EnjazDbContext _context;

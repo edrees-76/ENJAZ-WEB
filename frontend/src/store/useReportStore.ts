@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import apiClient from '../services/apiClient';
 
 // ═══════════════════════════════════════════════
 // Types
@@ -209,24 +210,14 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ summaryLoading: true, error: null });
 
     try {
-      const res = await fetch(`${API_BASE}/summary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await apiClient.post('/Reports/summary', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
           endDate,
           sender: selectedSender || undefined,
-        }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'فشل تحميل التقرير');
-      }
-
-      const data: ReportSummary = await res.json();
       set({ summary: data, hasFetched: true, summaryLoading: false });
     } catch (err: any) {
       set({ error: err.message, summaryLoading: false });
@@ -238,10 +229,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ tableLoading: true, error: null });
 
     try {
-      const res = await fetch(`${API_BASE}/table`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await apiClient.post('/Reports/table', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
@@ -250,16 +238,9 @@ export const useReportStore = create<ReportState>((set, get) => ({
           page: currentPage,
           pageSize,
           columns: selectedColumns,
-        }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'فشل تحميل الجدول');
-      }
-
-      const result: PagedResult<CertificateReportRow> = await res.json();
-      set({ tableData: result.data, tableTotalCount: result.totalCount, tableLoading: false, showTable: true });
+      set({ tableData: data.data, tableTotalCount: data.totalCount, tableLoading: false, showTable: true });
     } catch (err: any) {
       set({ error: err.message, tableLoading: false });
     }
@@ -267,9 +248,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   fetchSenders: async () => {
     try {
-      const res = await fetch(`${API_BASE}/senders`);
-      if (!res.ok) return;
-      const data: string[] = await res.json();
+      const { data } = await apiClient.get('/Reports/senders');
       set({ sendersList: data });
     } catch {
       // لا نعرض خطأ — القائمة ستكون فارغة فقط
@@ -281,22 +260,16 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ exporting: true });
 
     try {
-      const res = await fetch(`${API_BASE}/export/excel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await apiClient.post('/Reports/export/excel', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
           endDate,
           sender: selectedSender || undefined,
           columns: selectedColumns,
-        }),
-      });
+      }, { responseType: 'blob' });
 
-      if (!res.ok) throw new Error('فشل تصدير Excel');
-
-      const blob = await res.blob();
+      const blob = new Blob([data]);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -322,22 +295,16 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ exporting: true });
 
     try {
-      const res = await fetch(`${API_BASE}/export/pdf`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await apiClient.post('/Reports/export/pdf', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
           endDate,
           sender: selectedSender || undefined,
           columns: selectedColumns,
-        }),
-      });
+      }, { responseType: 'blob' });
 
-      if (!res.ok) throw new Error('فشل تصدير PDF');
-
-      const blob = await res.blob();
+      const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

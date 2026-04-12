@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 export interface Sample {
   id?: number;
@@ -83,15 +83,22 @@ export const useSampleStore = create<SampleState>((set) => ({
   fetchReceptions: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.get('http://localhost:5144/api/samples', {
+      const response = await apiClient.get('/samples', {
         timeout: 10000,
       });
       
       const rawData = response.data;
-      let data: SampleReception[] = [];
+      let dataList: any[] = [];
       
-      if (Array.isArray(rawData)) {
-        data = rawData
+      if (rawData && Array.isArray(rawData.items)) {
+          dataList = rawData.items;
+      } else if (Array.isArray(rawData)) {
+          dataList = rawData;
+      }
+      
+      let data: SampleReception[] = [];
+      if (dataList.length > 0) {
+        data = dataList
           .filter((item: any) => item != null)
           .map((item: any) => ({
             ...item,
@@ -104,8 +111,8 @@ export const useSampleStore = create<SampleState>((set) => ({
         
       set({ receptions: data, loading: false });
     } catch (error) {
-      console.error('fetchReceptions error:', error);
-      set({ receptions: [], loading: false });
+      console.error('fetchReceptions error, running in DEMO mode:', error);
+      set({ receptions: mockReceptions, loading: false }); // Fallback to mock data for presentation
     }
   },
 
@@ -116,7 +123,7 @@ export const useSampleStore = create<SampleState>((set) => ({
   addReception: async (reception) => {
     set({ loading: true });
     try {
-      await axios.post('http://localhost:5144/api/samples', reception);
+      await apiClient.post('/samples', reception);
       set(() => ({ loading: false }));
       return true;
     } catch (error) {
@@ -127,7 +134,7 @@ export const useSampleStore = create<SampleState>((set) => ({
 
   deleteReception: async (id) => {
     try {
-      await axios.delete(`http://localhost:5144/api/samples/${id}`);
+      await apiClient.delete(`/samples/${id}`);
       set((state) => ({
         receptions: state.receptions.filter((r) => r.id !== id),
       }));
@@ -139,7 +146,7 @@ export const useSampleStore = create<SampleState>((set) => ({
   updateReception: async (id, reception) => {
     set({ loading: true });
     try {
-      const response = await axios.put(`http://localhost:5144/api/samples/${id}`, reception);
+      const response = await apiClient.put(`/samples/${id}`, reception);
       const updatedItem = response.data;
       
       set((state) => ({

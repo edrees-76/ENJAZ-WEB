@@ -8,6 +8,7 @@ namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ReportsController : ControllerBase
     {
         private readonly ReportService _reportService;
@@ -133,11 +134,6 @@ namespace backend.Controllers
                     ? $"{request.SenderName}_{timestamp}.xlsx"
                     : $"التقرير_العام_{timestamp}.xlsx";
 
-                // حفظ مؤقت وفتح بالبرنامج الافتراضي
-                var tempPath = Path.Combine(Path.GetTempPath(), fileName);
-                await System.IO.File.WriteAllBytesAsync(tempPath, fileBytes);
-                Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
-
                 return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)
@@ -171,11 +167,6 @@ namespace backend.Controllers
                 var fileName = request.ReportType == "sender"
                     ? $"{request.SenderName}_{timestamp}.pdf"
                     : $"التقرير_العام_{timestamp}.pdf";
-
-                // حفظ مؤقت وفتح بالبرنامج الافتراضي
-                var tempPath = Path.Combine(Path.GetTempPath(), fileName);
-                await System.IO.File.WriteAllBytesAsync(tempPath, fileBytes);
-                Process.Start(new ProcessStartInfo(tempPath) { UseShellExecute = true });
 
                 return File(fileBytes, "application/pdf", fileName);
             }

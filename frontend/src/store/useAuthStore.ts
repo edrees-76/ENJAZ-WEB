@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 // ═══════════════════════════════════════════════
 // Permission Bitmask Constants
@@ -62,70 +62,7 @@ interface AuthState {
   canEdit: () => boolean;
 }
 
-const API_BASE = 'http://localhost:5144/api';
 
-// ═══════════════════════════════════════════════
-// Axios Configuration
-// ═══════════════════════════════════════════════
-
-// Add JWT to all requests
-axios.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Auto-refresh on 401
-let isRefreshing = false;
-let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
-
-const processQueue = (error: unknown) => {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (error) reject(error);
-    else resolve(undefined);
-  });
-  failedQueue = [];
-};
-
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh')) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(() => axios(originalRequest));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const success = await useAuthStore.getState().refreshToken();
-        if (success) {
-          processQueue(null);
-          return axios(originalRequest);
-        } else {
-          processQueue(error);
-          return Promise.reject(error);
-        }
-      } catch (refreshError) {
-        processQueue(refreshError);
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-// ═══════════════════════════════════════════════
 // Store
 // ═══════════════════════════════════════════════
 
@@ -146,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
-          await axios.post(`${API_BASE}/auth/logout`);
+          await apiClient.post('/auth/logout');
         } catch {
           // Ignore errors during logout
         }
@@ -155,9 +92,7 @@ export const useAuthStore = create<AuthState>()(
 
       refreshToken: async () => {
         try {
-          const response = await axios.post(`${API_BASE}/auth/refresh`, {}, {
-            withCredentials: true
-          });
+          const response = await apiClient.post('/auth/refresh');
           const data = response.data as LoginResponse;
           set({
             token: data.accessToken,

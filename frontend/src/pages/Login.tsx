@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { Eye, EyeOff } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 export const Login = () => {
   const [username, setUsername] = useState(() => localStorage.getItem('savedUsername') || 'admin');
@@ -56,7 +56,22 @@ export const Login = () => {
     setRemainingAttempts(null);
     
     try {
-      const response = await axios.post('http://localhost:5144/api/auth/login', { username, password });
+      // 🚀 DEMO MODE: Bypass backend API completely for presentation purposes!
+      await new Promise(resolve => setTimeout(resolve, 800)); // Fake realistic delay
+      
+      const mockResponse = {
+        accessToken: 'demo_token_123456789',
+        user: {
+          id: 1,
+          username: username,
+          fullName: 'مدير النظام (وضع الاستعراض)',
+          role: 'Admin',
+          roleDisplayName: 'مدير نظام',
+          permissions: 63, // Permission.All
+          isEditor: true,
+          isActive: true
+        }
+      };
       
       if (rememberMe) {
         localStorage.setItem('savedUsername', username);
@@ -64,12 +79,12 @@ export const Login = () => {
         localStorage.removeItem('savedUsername');
       }
 
-      login(response.data);
+      login(mockResponse as any);
       
       // تعيين علامة الترحيب لتعرضها لوحة القيادة
       sessionStorage.setItem('showWelcome', 'true');
 
-      navigate('/');
+      navigate('/app');
     } catch (err: any) {
       const data = err.response?.data;
       if (err.response?.status === 429) {
@@ -174,9 +189,12 @@ export const Login = () => {
                     {isLoading ? 'جاري التحقق...' : 'دخول بالمنظومة'}
                 </button>
 
-                <div className="mt-8 pt-4 border-t border-sky-500/10 text-center">
-                    <p className="text-[11px] font-bold italic" style={{ color: 'var(--credit-color)' }}>
-                        تصميم وتنفيذ م . ادريس فتح الله الهرى
+                <div className="mt-8 pt-4 border-t border-sky-500/10 text-center space-y-1 opacity-70 hover:opacity-100 transition-opacity">
+                    <p className="text-[11px] font-bold" style={{ color: 'var(--text-main)' }}>
+                        © {new Date().getFullYear()} منظومة إنجاز ويب. جميع الحقوق محفوظة.
+                    </p>
+                    <p className="text-[10px] font-bold italic" style={{ color: 'var(--credit-color)' }}>
+                        تصميم وتطوير المهندس إدريس الهرى
                     </p>
                 </div>
             </form>

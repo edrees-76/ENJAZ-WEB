@@ -12,6 +12,7 @@ import { AdminProcedures } from './pages/AdminProcedures';
 import { Users } from './pages/Users';
 import { Help } from './pages/Help';
 import { Settings } from './pages/Settings';
+import { Landing } from './pages/Landing';
 const About = lazy(() => import('./pages/About').then(module => ({ default: module.About })));
 import { useAuthStore } from './store/useAuthStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -30,7 +31,7 @@ const queryClient = new QueryClient({
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/" />;
 };
 
 function App() {
@@ -39,9 +40,13 @@ function App() {
       <SignalRProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={
+              <Landing />
+            } />
+            <Route path="/welcome" element={<Navigate to="/" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/design-review" element={<DesignReview />} />
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
+            <Route path="/app" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
               <Route index element={<DashboardHome />} />
               <Route path="samples" element={<Samples />} />
               <Route path="certificates" element={<Certificates />} />
