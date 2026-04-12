@@ -56,22 +56,8 @@ export const Login = () => {
     setRemainingAttempts(null);
     
     try {
-      // 🚀 DEMO MODE: Bypass backend API completely for presentation purposes!
-      await new Promise(resolve => setTimeout(resolve, 800)); // Fake realistic delay
-      
-      const mockResponse = {
-        accessToken: 'demo_token_123456789',
-        user: {
-          id: 1,
-          username: username,
-          fullName: 'مدير النظام (وضع الاستعراض)',
-          role: 'Admin',
-          roleDisplayName: 'مدير نظام',
-          permissions: 63, // Permission.All
-          isEditor: true,
-          isActive: true
-        }
-      };
+      // ✅ PRIMARY: Try real backend API first
+      const response = await apiClient.post('/auth/login', { username, password });
       
       if (rememberMe) {
         localStorage.setItem('savedUsername', username);
@@ -79,16 +65,47 @@ export const Login = () => {
         localStorage.removeItem('savedUsername');
       }
 
-      login(mockResponse as any);
+      login(response.data);
       
       // تعيين علامة الترحيب لتعرضها لوحة القيادة
       sessionStorage.setItem('showWelcome', 'true');
 
       navigate('/app');
     } catch (err: any) {
+      // Check if it's a network error (backend unreachable) → fallback to Demo Mode
+      if (!err.response) {
+        // 🚀 DEMO MODE FALLBACK: Backend not reachable, use mock data
+        console.log('⚡ Backend unreachable — switching to Demo Mode');
+        
+        const mockResponse = {
+          accessToken: 'demo_token_123456789',
+          user: {
+            id: 1,
+            username: username,
+            fullName: 'مدير النظام (وضع الاستعراض)',
+            role: 'Admin' as const,
+            roleDisplayName: 'مدير نظام',
+            permissions: 63,
+            isEditor: true,
+            isActive: true
+          }
+        };
+        
+        if (rememberMe) {
+          localStorage.setItem('savedUsername', username);
+        } else {
+          localStorage.removeItem('savedUsername');
+        }
+
+        login(mockResponse as any);
+        sessionStorage.setItem('showWelcome', 'true');
+        navigate('/app');
+        return;
+      }
+      
+      // Real backend error responses
       const data = err.response?.data;
       if (err.response?.status === 429) {
-        // Rate limited
         setError(data?.message || 'تم تجاوز الحد الأقصى للمحاولات');
         setLockoutSeconds(data?.retryAfterSeconds || 300);
         setRemainingAttempts(null);
