@@ -23,11 +23,18 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only force-logout on 401 if we actually got a response from the server
+    // In Demo Mode (no backend), errors are network errors (no response), not 401s
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('enjaz-auth');
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // Check if this is a demo session (no real token)
+      const authStr = localStorage.getItem('enjaz-auth');
+      const isDemoSession = authStr && JSON.parse(authStr)?.state?.token?.startsWith('demo_');
+      
+      if (!isDemoSession) {
+        localStorage.removeItem('enjaz-auth');
+        if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+          window.location.href = '/';
+        }
       }
     }
     return Promise.reject(error);
