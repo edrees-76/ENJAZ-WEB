@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using backend.Models;
 using backend.Services;
 using System.Diagnostics;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/reports")]
     [ApiController]
     [Authorize]
     public class ReportsController : ControllerBase
@@ -36,6 +38,10 @@ namespace backend.Controllers
         {
             try
             {
+                // Normalize dates to UTC for PostgreSQL timestamptz
+                request.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
                 // Validation: EndDate بعد StartDate
                 if (request.EndDate.Date < request.StartDate.Date)
                 {
@@ -43,7 +49,7 @@ namespace backend.Controllers
                 }
 
                 // توسيع تاريخ النهاية ليشمل نهاية اليوم
-                request.EndDate = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
                 // Validation: الفترة لا تتجاوز سنتين
                 if ((request.EndDate - request.StartDate).TotalDays > 730)
@@ -69,13 +75,17 @@ namespace backend.Controllers
         {
             try
             {
+                // Normalize dates to UTC for PostgreSQL timestamptz
+                request.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
                 if (request.EndDate.Date < request.StartDate.Date)
                 {
                     return BadRequest(new { message = "تاريخ النهاية يجب أن يكون بعد تاريخ البداية" });
                 }
 
                 // توسيع تاريخ النهاية ليشمل نهاية اليوم
-                request.EndDate = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
                 // حدود الترقيم
                 if (request.PageSize > 100) request.PageSize = 100;
@@ -117,13 +127,17 @@ namespace backend.Controllers
         {
             try
             {
+                // Normalize dates to UTC for PostgreSQL timestamptz
+                request.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
                 if (request.EndDate.Date < request.StartDate.Date)
                 {
                     return BadRequest(new { message = "تاريخ النهاية يجب أن يكون بعد تاريخ البداية" });
                 }
 
                 // توسيع تاريخ النهاية ليشمل نهاية اليوم
-                request.EndDate = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
                 var data = await _reportService.GetAllForExportAsync(request);
                 var summary = await _reportService.GetSummaryAsync(request);
@@ -151,13 +165,17 @@ namespace backend.Controllers
         {
             try
             {
+                // Normalize dates to UTC for PostgreSQL timestamptz
+                request.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
                 if (request.EndDate.Date < request.StartDate.Date)
                 {
                     return BadRequest(new { message = "تاريخ النهاية يجب أن يكون بعد تاريخ البداية" });
                 }
 
                 // توسيع تاريخ النهاية ليشمل نهاية اليوم
-                request.EndDate = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+                request.EndDate = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
                 var data = await _reportService.GetAllForExportAsync(request);
                 var summary = await _reportService.GetSummaryAsync(request);

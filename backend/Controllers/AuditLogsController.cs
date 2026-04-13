@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using backend.Models.DTOs;
 using backend.Services;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/audit-logs")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/audit-logs")]
     [ApiController]
     [Authorize(Roles = "Admin")]
     public class AuditLogsController : ControllerBase

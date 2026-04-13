@@ -248,17 +248,42 @@ namespace backend.Services
             _db.RefreshTokens.Add(refreshToken);
             await _db.SaveChangesAsync();
 
-            // Cleanup old tokens for this user (keep last 5)
-            var oldTokens = await _db.RefreshTokens
+            // ═══════════════════════════════════════
+            // Auth Hardening: Per-user session limit (max 3 active)
+            // Prevents unlimited concurrent sessions.
+            // Oldest sessions are auto-revoked.
+            // ═══════════════════════════════════════
+            const int maxActiveSessions = 3;
+
+            var activeTokens = await _db.RefreshTokens
+                .Where(r => r.UserId == userId && !r.IsRevoked && r.ExpiresAt > DateTime.UtcNow)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            if (activeTokens.Count > maxActiveSessions)
+            {
+                var tokensToRevoke = activeTokens.Skip(maxActiveSessions).ToList();
+                foreach (var t in tokensToRevoke)
+                {
+                    t.IsRevoked = true;
+                }
+                _logger.LogInformation(
+                    "Auto-revoked {Count} old sessions for user {UserId} (limit: {Max})",
+                    tokensToRevoke.Count, userId, maxActiveSessions);
+            }
+
+            // Cleanup expired/revoked tokens (keep last 10 for audit trail)
+            var expiredTokens = await _db.RefreshTokens
                 .Where(r => r.UserId == userId && (r.IsRevoked || r.ExpiresAt < DateTime.UtcNow))
                 .OrderBy(r => r.CreatedAt)
                 .ToListAsync();
 
-            if (oldTokens.Count > 5)
+            if (expiredTokens.Count > 10)
             {
-                _db.RefreshTokens.RemoveRange(oldTokens.Take(oldTokens.Count - 5));
-                await _db.SaveChangesAsync();
+                _db.RefreshTokens.RemoveRange(expiredTokens.Take(expiredTokens.Count - 10));
             }
+
+            await _db.SaveChangesAsync();
 
             return tokenValue;
         }

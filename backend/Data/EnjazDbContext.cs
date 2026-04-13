@@ -34,6 +34,9 @@ namespace backend.Data
         public DbSet<Models.Alert> Alerts { get; set; }
         public DbSet<Models.UserAlert> UserAlerts { get; set; }
 
+        // Stability: Feature Flags
+        public DbSet<Services.FeatureFlag> FeatureFlags { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // ═══════════════════════════════════════════════
@@ -62,6 +65,14 @@ namespace backend.Data
                 entity.HasIndex(a => a.Timestamp);
                 entity.HasIndex(a => a.UserId);
 
+                // Cursor pagination composite index
+                entity.HasIndex(a => new { a.Timestamp, a.Id })
+                    .HasDatabaseName("IX_Audit_Cursor");
+
+                // Compound filter index
+                entity.HasIndex(a => new { a.UserId, a.Timestamp })
+                    .HasDatabaseName("IX_Audit_User_Time");
+
                 entity.HasOne(a => a.User)
                     .WithMany(u => u.AuditLogs)
                     .HasForeignKey(a => a.UserId)
@@ -76,6 +87,11 @@ namespace backend.Data
                 entity.HasIndex(r => r.Token).IsUnique();
                 entity.HasIndex(r => r.UserId);
 
+                // Partial index: active tokens only (bounded growth)
+                entity.HasIndex(r => new { r.UserId, r.ExpiresAt })
+                    .HasFilter("\"IsRevoked\" = false")
+                    .HasDatabaseName("IX_RefreshTokens_Active");
+
                 // Ignore computed properties
                 entity.Ignore(r => r.IsExpired);
                 entity.Ignore(r => r.IsValid);
@@ -89,27 +105,46 @@ namespace backend.Data
             // ═══════════════════════════════════════════════
             // Sample Reception Configuration (existing)
             // ═══════════════════════════════════════════════
-            modelBuilder.Entity<Models.SampleReception>()
-                .HasMany(r => r.Samples)
-                .WithOne(s => s.SampleReception)
-                .HasForeignKey(s => s.SampleReceptionId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<Models.SampleReception>(entity =>
+            {
+                entity.HasMany(r => r.Samples)
+                    .WithOne(s => s.SampleReception)
+                    .HasForeignKey(s => s.SampleReceptionId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Models.Certificate>()
-                .HasMany(c => c.Samples)
-                .WithOne(s => s.Certificate)
-                .HasForeignKey(s => s.CertificateId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Cursor pagination composite index
+                entity.HasIndex(r => new { r.CreatedAt, r.Id })
+                    .HasDatabaseName("IX_SR_Cursor");
 
-            // Report Performance Indexes
-            modelBuilder.Entity<Models.Certificate>()
-                .HasIndex(c => c.IssueDate);
+                // Filter indexes
+                entity.HasIndex(r => r.Status)
+                    .HasDatabaseName("IX_SR_Status");
+                entity.HasIndex(r => new { r.Status, r.CreatedAt })
+                    .HasDatabaseName("IX_SR_Status_Created");
+            });
 
-            modelBuilder.Entity<Models.Certificate>()
-                .HasIndex(c => c.Sender);
+            modelBuilder.Entity<Models.Certificate>(entity =>
+            {
+                entity.HasMany(c => c.Samples)
+                    .WithOne(s => s.Certificate)
+                    .HasForeignKey(s => s.CertificateId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Models.Certificate>()
-                .HasIndex(c => c.CertificateType);
+                // Cursor pagination composite index
+                entity.HasIndex(c => new { c.IssueDate, c.Id })
+                    .HasDatabaseName("IX_Cert_Cursor");
+
+                // Unique certificate number
+                entity.HasIndex(c => c.CertificateNumber)
+                    .IsUnique()
+                    .HasDatabaseName("IX_Cert_Number");
+
+                // Report performance indexes
+                entity.HasIndex(c => c.IssueDate);
+                entity.HasIndex(c => c.Sender);
+                entity.HasIndex(c => new { c.CertificateType, c.IssueDate })
+                    .HasDatabaseName("IX_Cert_Type_Issued");
+            });
 
             // ═══════════════════════════════════════════════
             // Referral Letter Configuration

@@ -5,6 +5,7 @@ using backend.Data;
 using backend.Models;
 using backend.Services;
 using System.Security.Claims;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
@@ -12,7 +13,8 @@ namespace backend.Controllers
     /// Administrative Procedures — Referral Letter Management.
     /// Handles creation, preview, PDF generation, and history of referral letters.
     /// </summary>
-    [Route("api/admin-procedures")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/admin-procedures")]
     [ApiController]
     [Authorize]
     public class AdminProceduresController : ControllerBase

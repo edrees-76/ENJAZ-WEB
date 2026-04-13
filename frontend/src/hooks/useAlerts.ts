@@ -24,7 +24,7 @@ export const useAlerts = () => {
   const { data: alerts = [], isLoading, error } = useQuery<Alert[]>({
     queryKey: ['alerts'],
     queryFn: async () => {
-      const resp = await apiClient.get('/v1/alerts');
+      const resp = await apiClient.get('/alerts');
       return resp.data;
     },
     enabled: !!token,
@@ -34,7 +34,7 @@ export const useAlerts = () => {
   const { data: unreadCount = 0 } = useQuery<number>({
     queryKey: ['alerts', 'unread-count'],
     queryFn: async () => {
-      const resp = await apiClient.get('/v1/alerts/unread-count');
+      const resp = await apiClient.get('/alerts/unread-count');
       return resp.data.count;
     },
     enabled: !!token,
@@ -43,7 +43,7 @@ export const useAlerts = () => {
   // Mark as Read Mutation
   const markAsReadMutation = useMutation({
     mutationFn: async (id: number) => {
-      await apiClient.post(`/v1/alerts/${id}/read`);
+      await apiClient.post(`/alerts/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] });

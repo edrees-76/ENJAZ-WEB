@@ -57,7 +57,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   fetchStats: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get('/Dashboard/stats');
+      const response = await apiClient.get('/dashboard/stats');
       set({ stats: response.data, loading: false });
     } catch (err: any) {
       if (import.meta.env.DEV) console.debug("DEMO MODE: Falling back to mock dashboard stats");

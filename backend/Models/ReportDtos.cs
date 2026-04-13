@@ -55,12 +55,22 @@ namespace backend.Models
     }
 
     // ═══════════════════════════════════════════════
-    // PagedResult<T> — قابل لإعادة الاستخدام
+    // PagedResult<T> — Dual Mode: Offset + Cursor
     // ═══════════════════════════════════════════════
     public class PagedResult<T>
     {
         public List<T> Data { get; set; } = new();
         public int TotalCount { get; set; }
+
+        // Offset pagination
+        public int? Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => PageSize > 0 ? (int)Math.Ceiling((double)TotalCount / PageSize) : 0;
+
+        // Cursor pagination
+        public string? NextCursor { get; set; }
+        public bool HasNext { get; set; }
+        public bool HasPrevious { get; set; }
     }
 
     // ═══════════════════════════════════════════════

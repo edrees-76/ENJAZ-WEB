@@ -2,10 +2,12 @@ using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/v1/settings")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/settings")]
     [ApiController]
     [Authorize]
     public class SettingsController : ControllerBase

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useAuthStore } from './useAuthStore';
 
 // ═══════════════════════════════════════════════
 // Types
@@ -90,7 +91,15 @@ interface AdminProceduresState {
   deleteLetter: (id: number) => Promise<void>;
 }
 
-const API_BASE = 'http://localhost:5144/api/admin-procedures';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5144/api/v1') + '/admin-procedures';
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = useAuthStore.getState().token;
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+};
 
 const today = new Date();
 const yearStart = new Date(today.getFullYear(), 0, 1);
@@ -181,7 +190,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
 
   fetchSenders: async () => {
     try {
-      const res = await fetch(`${API_BASE}/senders`);
+      const res = await fetch(`${API_BASE}/senders`, { headers: getAuthHeaders() });
       if (!res.ok) return;
       const data: string[] = await res.json();
       set({ sendersList: data });
@@ -198,7 +207,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
     try {
       const res = await fetch(`${API_BASE}/preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ senderName: selectedSender, startDate, endDate }),
       });
 
@@ -238,7 +247,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
     try {
       const res = await fetch(`${API_BASE}/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           senderName: selectedSender,
           startDate,
@@ -298,7 +307,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
       });
       if (selectedFilterSender) params.set('sender', selectedFilterSender);
 
-      const res = await fetch(`${API_BASE}/history?${params}`);
+      const res = await fetch(`${API_BASE}/history?${params}`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('فشل تحميل السجل');
 
       const data = await res.json();
@@ -314,7 +323,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
 
   downloadPdf: async (id, refNumber) => {
     try {
-      const res = await fetch(`${API_BASE}/${id}/pdf`);
+      const res = await fetch(`${API_BASE}/${id}/pdf`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('فشل تحميل الملف');
 
       const blob = await res.blob();
@@ -339,7 +348,7 @@ export const useAdminProceduresStore = create<AdminProceduresState>((set, get) =
 
   deleteLetter: async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('فشل حذف الرسالة');
 
       set({ successMessage: 'تم حذف الرسالة بنجاح' });

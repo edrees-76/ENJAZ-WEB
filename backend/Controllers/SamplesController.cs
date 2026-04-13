@@ -5,10 +5,12 @@ using backend.Data;
 using backend.Models;
 using backend.Services;
 using System.Security.Claims;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/samples")]
     [ApiController]
     [Authorize]
     public class SamplesController : ControllerBase

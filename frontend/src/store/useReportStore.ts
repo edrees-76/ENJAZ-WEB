@@ -131,7 +131,7 @@ interface ReportState {
   resetFilters: () => void;
 }
 
-const API_BASE = 'http://localhost:5144/api/reports';
+// API_BASE is no longer needed — apiClient.baseURL handles this
 
 // الأعمدة الافتراضية
 const DEFAULT_COLUMNS: ReportColumn[] = [
@@ -210,7 +210,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ summaryLoading: true, error: null });
 
     try {
-      const { data } = await apiClient.post('/Reports/summary', {
+      const { data } = await apiClient.post('/reports/summary', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
@@ -229,7 +229,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ tableLoading: true, error: null });
 
     try {
-      const { data } = await apiClient.post('/Reports/table', {
+      const { data } = await apiClient.post('/reports/table', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
@@ -248,7 +248,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
   fetchSenders: async () => {
     try {
-      const { data } = await apiClient.get('/Reports/senders');
+      const { data } = await apiClient.get('/reports/senders');
       set({ sendersList: data });
     } catch {
       // لا نعرض خطأ — القائمة ستكون فارغة فقط
@@ -260,7 +260,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ exporting: true });
 
     try {
-      const { data } = await apiClient.post('/Reports/export/excel', {
+      const { data } = await apiClient.post('/reports/export/excel', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,
@@ -295,7 +295,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     set({ exporting: true });
 
     try {
-      const { data } = await apiClient.post('/Reports/export/pdf', {
+      const { data } = await apiClient.post('/reports/export/pdf', {
           reportType: get().reportType,
           senderName: get().selectedSender,
           startDate,

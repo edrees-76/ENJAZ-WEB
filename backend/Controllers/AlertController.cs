@@ -2,10 +2,12 @@ using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/v1/alerts")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/alerts")]
     [ApiController]
     [Authorize]
     public class AlertController : ControllerBase

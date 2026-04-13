@@ -312,7 +312,7 @@ export const DashboardHome = () => {
             </h3>
             <div className="w-full px-6 pb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                <button 
-                onClick={() => navigate('/samples?action=add')}
+                onClick={() => navigate('/app/samples?action=add')}
                 className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-blue-500/20 transition-all border border-white/20 group"
                >
                   <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-blue-500/20">
@@ -322,7 +322,7 @@ export const DashboardHome = () => {
                </button>
 
                <button 
-                onClick={() => navigate('/certificates?action=add')}
+                onClick={() => navigate('/app/certificates?action=add')}
                 className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-emerald-500/20 transition-all border border-white/20 group"
                >
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/20">
@@ -331,7 +331,7 @@ export const DashboardHome = () => {
                   <span className="font-bold text-lg" style={{ color: 'var(--text-main)' }}>إصدار شهادة</span>
                </button>
                <button 
-                onClick={() => navigate('/samples?action=search')}
+                onClick={() => navigate('/app/samples?action=search')}
                 className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-amber-500/20 transition-all border border-white/20 group"
                >
                   <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-amber-500/20">
@@ -341,7 +341,7 @@ export const DashboardHome = () => {
                </button>
 
                <button 
-                onClick={() => navigate('/certificates')}
+                onClick={() => navigate('/app/certificates')}
                 className="flex flex-col items-center justify-center p-6 rounded-3xl glass-panel hover:bg-purple-500/20 transition-all border border-white/20 group"
                >
                   <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-purple-500/20">

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useAuthStore } from './useAuthStore';
 
-const API_BASE = 'http://localhost:5144/api/v1/settings';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5144/api/v1') + '/settings';
 
 // ═══════════════════════════════════════════════
 // Types

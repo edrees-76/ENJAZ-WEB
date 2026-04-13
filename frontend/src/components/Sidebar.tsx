@@ -108,7 +108,9 @@ export const Sidebar = () => {
       {/* Navigation Area */}
       <div className="flex flex-col px-3 pb-4 space-y-1 shrink-0">
         {navigation.map((item) => {
-          const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+          const isActive = item.path === '/app' 
+            ? location.pathname === '/app' 
+            : location.pathname.startsWith(item.path);
           return (
              <ProtectedElement key={item.name} permission={item.permission}>
                <button

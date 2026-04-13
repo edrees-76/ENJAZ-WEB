@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
     // Temporarily disabled for testing
     // [Authorize]
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/dashboard")]
     [ApiController]
     public class DashboardController : ControllerBase
     {
@@ -23,8 +25,8 @@ namespace backend.Controllers
         {
             try 
             {
-                var today = DateTime.Today;
-                var twelveMonthsAgo = new DateTime(today.Year, today.Month, 1).AddMonths(-11);
+                var today = DateTime.UtcNow.Date;
+                var twelveMonthsAgo = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-11);
 
                 // Basic Sample Stats (Counting actual samples, not just receptions)
                 var totalSamples = await _context.ReceptionSamples.CountAsync();

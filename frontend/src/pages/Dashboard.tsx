@@ -57,7 +57,7 @@ export const Dashboard = () => {
   const isSidebarCollapsed = useUIStore(state => state.isSidebarCollapsed);
   const toggleSidebar = useUIStore(state => state.toggleSidebar);
   const location = useLocation();
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === '/app';
   
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
 
@@ -131,7 +131,7 @@ export const Dashboard = () => {
           {isHomePage && (
             <div className="flex-1 flex justify-end items-center gap-4">
                <NotificationBell />
-               <DateTimeWidget username={user?.username || 'مدير النظام'} />
+               <DateTimeWidget username={user?.fullName || user?.username || 'مدير النظام'} />
             </div>
           )}
         </header>

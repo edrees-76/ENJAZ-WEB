@@ -3,10 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using backend.Models.DTOs;
 using backend.Services;
 using System.Security.Claims;
+using Asp.Versioning;
 
 namespace backend.Controllers
 {
-    [Route("api/[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/users")]
     [ApiController]
     [Authorize(Roles = "Admin")]
     public class UsersController : ControllerBase
