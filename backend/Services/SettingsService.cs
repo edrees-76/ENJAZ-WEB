@@ -262,7 +262,10 @@ namespace backend.Services
                 }
 
                 var json = Encoding.UTF8.GetString(decrypted);
-                var envelope = JsonSerializer.Deserialize<BackupEnvelope>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                opts.Converters.Add(new UtcDateTimeConverter());
+                opts.Converters.Add(new NullableUtcDateTimeConverter());
+                var envelope = JsonSerializer.Deserialize<BackupEnvelope>(json, opts);
 
                 if (envelope == null)
                 {
@@ -320,6 +323,8 @@ namespace backend.Services
             var json = Encoding.UTF8.GetString(decrypted);
 
             var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            opts.Converters.Add(new UtcDateTimeConverter());
+            opts.Converters.Add(new NullableUtcDateTimeConverter());
             var envelope = JsonSerializer.Deserialize<BackupEnvelope>(json, opts)
                 ?? throw new InvalidOperationException("تنسيق الملف غير صالح");
 
@@ -346,11 +351,17 @@ namespace backend.Services
 
             await _db.SaveChangesAsync();
 
-            // Reset SQLite sequences
-            await _db.Database.ExecuteSqlRawAsync(
-                "DELETE FROM sqlite_sequence WHERE name IN ('Certificates','SampleReceptions','Samples','ReceptionSamples','ReferralLetters','AuditLogs');");
+            // Reset sequences depending on database provider
+            if (_db.Database.IsNpgsql())
+            {
+                await _db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"Certificates\", \"SampleReceptions\", \"Samples\", \"ReceptionSamples\", \"ReferralLetters\", \"ReferralLetterCertificates\", \"AuditLogs\" RESTART IDENTITY CASCADE;");
+            }
+            else
+            {
+                await _db.Database.ExecuteSqlRawAsync("DELETE FROM sqlite_sequence WHERE name IN ('Certificates','SampleReceptions','Samples','ReceptionSamples','ReferralLetters','AuditLogs');");
+            }
 
-            // Insert restored data — merge users (skip existing)
+            // Insert restored data — merge users (update existing or add)
             foreach (var user in users)
             {
                 if (string.IsNullOrEmpty(user.PasswordHash))
@@ -359,7 +370,17 @@ namespace backend.Services
                     continue; 
                 }
                 var existing = await _db.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
-                if (existing == null) _db.Users.Add(user);
+                if (existing == null) 
+                {
+                    _db.Users.Add(user);
+                }
+                else
+                {
+                    existing.PasswordHash = user.PasswordHash;
+                    existing.FullName = user.FullName;
+                    existing.Role = user.Role;
+                    existing.Permissions = user.Permissions;
+                }
             }
 
             _db.SampleReceptions.AddRange(receptions);
@@ -371,6 +392,25 @@ namespace backend.Services
             _db.AuditLogs.AddRange(auditLogs);
 
             await _db.SaveChangesAsync();
+
+            // Postgres Sequence Sync
+            if (_db.Database.IsNpgsql())
+            {
+                var tablesToSync = new[] { "Certificates", "SampleReceptions", "Samples", "ReceptionSamples", "ReferralLetters", "ReferralLetterCertificates", "AuditLogs", "Users" };
+                foreach (var table in tablesToSync)
+                {
+                    try
+                    {
+                        await _db.Database.ExecuteSqlRawAsync($@"
+                            SELECT setval(pg_get_serial_sequence('""{table}""', 'Id'), COALESCE((SELECT MAX(""Id"") FROM ""{table}"") + 1, 1), false);
+                        ");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync sequence for table {Table}", table);
+                    }
+                }
+            }
 
             _logger.LogInformation("Backup restored successfully at {Time}", DateTime.UtcNow);
         }
@@ -439,9 +479,15 @@ namespace backend.Services
 
             await _db.SaveChangesAsync();
 
-            // Reset sequences
-            await _db.Database.ExecuteSqlRawAsync(
-                "DELETE FROM sqlite_sequence WHERE name IN ('Certificates','SampleReceptions','Samples','ReceptionSamples','ReferralLetters','AuditLogs');");
+            // Reset sequences depending on database provider
+            if (_db.Database.IsNpgsql())
+            {
+                await _db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"Certificates\", \"SampleReceptions\", \"Samples\", \"ReceptionSamples\", \"ReferralLetters\", \"ReferralLetterCertificates\", \"AuditLogs\" RESTART IDENTITY CASCADE;");
+            }
+            else
+            {
+                await _db.Database.ExecuteSqlRawAsync("DELETE FROM sqlite_sequence WHERE name IN ('Certificates','SampleReceptions','Samples','ReceptionSamples','ReferralLetters','AuditLogs');");
+            }
 
             _logger.LogWarning("Hard reset executed by user {UserId}", currentUserId);
         }
@@ -585,6 +631,28 @@ namespace backend.Services
 
             using var decryptor = aes.CreateDecryptor();
             return decryptor.TransformFinalBlock(cipherText, 0, cipherText.Length);
+        }
+    }
+
+    // Custom JSON converters for UTC DateTimes
+    public class UtcDateTimeConverter : System.Text.Json.Serialization.JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => DateTime.SpecifyKind(reader.GetDateTime(), DateTimeKind.Utc);
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToUniversalTime().ToString("O"));
+    }
+
+    public class NullableUtcDateTimeConverter : System.Text.Json.Serialization.JsonConverter<DateTime?>
+    {
+        public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.Null ? null : DateTime.SpecifyKind(reader.GetDateTime(), DateTimeKind.Utc);
+
+        public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue) writer.WriteStringValue(value.Value.ToUniversalTime().ToString("O"));
+            else writer.WriteNullValue();
         }
     }
 }

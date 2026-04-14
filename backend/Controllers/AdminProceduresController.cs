@@ -78,8 +78,8 @@ namespace backend.Controllers
             if (string.IsNullOrWhiteSpace(request.SenderName))
                 return BadRequest(new { message = "يجب تحديد الجهة المرسلة" });
 
-            var start = request.StartDate.Date;
-            var end = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+            var start = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc);
+            var end = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
             var query = _context.Certificates
                 .Include(c => c.Samples)
@@ -127,8 +127,8 @@ namespace backend.Controllers
 
             try
             {
-                var start = request.StartDate.Date;
-                var end = request.EndDate.Date.AddDays(1).AddSeconds(-1);
+                var start = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc);
+                var end = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
                 // 1. Query matching certificates with projection
                 var certificates = await _context.Certificates
@@ -145,7 +145,7 @@ namespace backend.Controllers
                 var totalSamples = certificates.Sum(c => c.Samples.Count);
 
                 // 2. Generate reference number (REF-YYYY-NNNNNN)
-                var year = DateTime.Now.Year;
+                var year = DateTime.UtcNow.Year;
                 var lastRef = await _context.ReferralLetters
                     .IgnoreQueryFilters() // Include soft-deleted for numbering
                     .Where(r => r.ReferenceNumber.StartsWith($"REF-{year}-"))
@@ -166,12 +166,12 @@ namespace backend.Controllers
                 var letter = new ReferralLetter
                 {
                     ReferenceNumber = referenceNumber,
-                    GeneratedAt = DateTime.Now,
+                    GeneratedAt = DateTime.UtcNow,
                     SenderName = request.SenderName,
                     CertificateCount = certificates.Count,
                     SampleCount = totalSamples,
-                    StartDate = request.StartDate,
-                    EndDate = request.EndDate,
+                    StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
+                    EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
                     IncludedColumns = (ReferralColumns)request.IncludedColumns,
                     TemplateVersion = _pdfService.CurrentTemplateVersion,
                     CreatedByName = request.CreatedByName ?? "مسؤول النظام"

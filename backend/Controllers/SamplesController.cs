@@ -90,7 +90,12 @@ namespace backend.Controllers
             var lastEntry = await _context.SampleReceptions.OrderByDescending(r => r.Id).FirstOrDefaultAsync();
             sampleReception.Sequence = (lastEntry?.Sequence ?? 0) + 1;
             
-            sampleReception.CreatedAt = DateTime.Now;
+            sampleReception.Date = DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc);
+            sampleReception.CreatedAt = DateTime.UtcNow;
+            
+            var (userId, userName) = GetCurrentUser();
+            sampleReception.CreatedBy = userId ?? 0;
+            sampleReception.CreatedByName = userName;
             
             // Ensure samples have proper reference
             if (sampleReception.Samples != null)
@@ -106,7 +111,6 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             // Audit Log
-            var (userId, userName) = GetCurrentUser();
             await _audit.LogAsync(userId, userName, "استلام عينات جديدة",
                 $"تم استلام عينات جديدة — رقم الإخطار: {sampleReception.NotificationNumber ?? "—"} — رقم طلب التحليل: {sampleReception.AnalysisRequestNumber}",
                 referenceId: sampleReception.Id,
@@ -167,8 +171,12 @@ namespace backend.Controllers
             existingReception.PolicyNumber = sampleReception.PolicyNumber;
             existingReception.FinancialReceiptNumber = sampleReception.FinancialReceiptNumber;
             existingReception.CertificateType = sampleReception.CertificateType;
-            existingReception.Date = sampleReception.Date;
-            existingReception.UpdatedAt = DateTime.Now;
+            existingReception.Date = DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc);
+            existingReception.UpdatedAt = DateTime.UtcNow;
+            
+            var (userId, userName) = GetCurrentUser();
+            existingReception.UpdatedBy = userId;
+            existingReception.UpdatedByName = userName;
 
             // Update nested samples
             _context.ReceptionSamples.RemoveRange(existingReception.Samples);
@@ -188,7 +196,6 @@ namespace backend.Controllers
                 await _context.SaveChangesAsync();
 
                 // Audit Log
-                var (userId, userName) = GetCurrentUser();
                 var changeDetails = changes.Count > 0 
                     ? "تم تعديل: " + string.Join(" | ", changes)
                     : "تم تعديل بيانات العينات الفرعية";

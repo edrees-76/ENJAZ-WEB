@@ -76,7 +76,7 @@ namespace backend.Services
                         if (!string.IsNullOrEmpty(certificate.NotificationNumber))
                             reception.NotificationNumber = certificate.NotificationNumber;
                         
-                        reception.UpdatedAt = DateTime.Now;
+                        reception.UpdatedAt = DateTime.UtcNow;
                         _context.SampleReceptions.Update(reception);
                     }
                 }

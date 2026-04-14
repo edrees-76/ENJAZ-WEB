@@ -40,7 +40,7 @@ namespace backend.Models
         /// <summary>
         /// Timestamp of when this letter was generated.
         /// </summary>
-        public DateTime GeneratedAt { get; set; } = DateTime.Now;
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
         /// The sender/entity this letter is addressed to.

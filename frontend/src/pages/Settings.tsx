@@ -3,7 +3,8 @@ import { GlassCard } from '../components/GlassCard';
 import {
   Settings as SettingsIcon, Bell, Database, Shield, RotateCcw,
   Download, Upload, Archive, AlertTriangle, Check, X, Loader2,
-  Sun, Moon, Type, Eye, ChevronDown, Clock, FileWarning, Trash2, Lock
+  Sun, Moon, Type, Eye, ChevronDown, Clock, FileWarning, Trash2, Lock,
+  Plus, Minus
 } from 'lucide-react';
 import { useSettingsStore, type BackupValidationResult } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
@@ -166,19 +167,33 @@ const GeneralTab = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () 
             updateUserSettings({ isDarkMode: !isDark });
           }} />
         </SettingRow>
-        <SettingRow label="حجم الخط" description={`المقياس الحالي: ${fontScale.toFixed(1)}x`}>
-          <div className="flex items-center gap-3">
-            <Type className="w-3.5 h-3.5 opacity-50" />
-            <input
-              type="range" min="0.8" max="1.4" step="0.1" value={fontScale}
-              onChange={e => {
-                const v = parseFloat(e.target.value);
+        <SettingRow label="حجم الخط" description="تعديل قياس النصوص في المنظومة">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-slate-200/50 dark:border-white/5">
+            <button
+              onClick={() => {
+                const v = Math.max(0.8, fontScale - 0.1);
                 setFontScale(v);
                 updateUserSettings({ fontSizeScale: v });
               }}
-              className="w-24 accent-sky-500"
-            />
-            <Type className="w-5 h-5 opacity-70" />
+              disabled={fontScale <= 0.8}
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/10 hover:shadow-sm disabled:opacity-30 transition-all text-slate-700 dark:text-slate-300"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <div className="w-12 text-center flex flex-col items-center justify-center">
+              <span className="font-bold text-sm text-sky-600 dark:text-sky-400" dir="ltr">{fontScale.toFixed(1)}x</span>
+            </div>
+            <button
+              onClick={() => {
+                const v = Math.min(1.4, fontScale + 0.1);
+                setFontScale(v);
+                updateUserSettings({ fontSizeScale: v });
+              }}
+              disabled={fontScale >= 1.4}
+              className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/10 hover:shadow-sm disabled:opacity-30 transition-all text-slate-700 dark:text-slate-300"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
         </SettingRow>
       </GlassCard>

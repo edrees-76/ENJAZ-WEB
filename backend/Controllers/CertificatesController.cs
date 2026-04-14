@@ -79,6 +79,32 @@ namespace backend.Controllers
 
             try 
             {
+                certificate.IssueDate = DateTime.SpecifyKind(certificate.IssueDate, DateTimeKind.Utc);
+                if (certificate.ExpiryDate.HasValue)
+                {
+                    certificate.ExpiryDate = DateTime.SpecifyKind(certificate.ExpiryDate.Value, DateTimeKind.Utc);
+                }
+                
+                // Force CreatedAt to Utc in case it came from JSON
+                certificate.CreatedAt = DateTime.UtcNow;
+                var (userId, userName) = GetCurrentUser();
+                certificate.CreatedBy = userId ?? 0;
+                certificate.CreatedByName = userName;
+                
+                // Disconnect navigation property to prevent EF from tracking and attempting to update it with JSON-deserialized Local dates
+                certificate.SampleReception = null;
+
+                if (certificate.Samples != null)
+                {
+                    foreach (var s in certificate.Samples)
+                    {
+                        if (s.MeasurementDate.HasValue)
+                        {
+                            s.MeasurementDate = DateTime.SpecifyKind(s.MeasurementDate.Value, DateTimeKind.Utc);
+                        }
+                    }
+                }
+
                 var createdCert = await _certificateService.CreateCertificateAsync(certificate);
                 var fullCert = await _context.Certificates
                     .Include(c => c.Samples)
@@ -86,7 +112,6 @@ namespace backend.Controllers
                     .FirstOrDefaultAsync(c => c.Id == createdCert.Id);
 
                 // Audit Log
-                var (userId, userName) = GetCurrentUser();
                 await _audit.LogAsync(userId, userName, "إصدار شهادة جديدة",
                     $"تم إصدار شهادة رقم {createdCert.CertificateNumber}",
                     referenceId: createdCert.Id,
@@ -118,9 +143,11 @@ namespace backend.Controllers
 
             if (existingCert == null)
             {
-                return NotFound();
+                return NotFound(new { message = "الشهادة غير موجودة" });
             }
 
+            // Disconnect navigation property to prevent EF tracking issues
+            certificate.SampleReception = null;
             // ═══ Capture old values for change tracking ═══
             var changes = new List<string>();
             if (existingCert.CertificateType != certificate.CertificateType)
@@ -160,7 +187,15 @@ namespace backend.Controllers
             existingCert.NotificationNumber = certificate.NotificationNumber;
             existingCert.PolicyNumber = certificate.PolicyNumber;
             existingCert.FinancialReceiptNumber = certificate.FinancialReceiptNumber;
-            existingCert.IssueDate = certificate.IssueDate;
+            existingCert.IssueDate = DateTime.SpecifyKind(certificate.IssueDate, DateTimeKind.Utc);
+            if (certificate.ExpiryDate.HasValue)
+            {
+                existingCert.ExpiryDate = DateTime.SpecifyKind(certificate.ExpiryDate.Value, DateTimeKind.Utc);
+            }
+            else
+            {
+                existingCert.ExpiryDate = null;
+            }
             existingCert.SpecialistName = certificate.SpecialistName;
             existingCert.SectionHeadName = certificate.SectionHeadName;
             existingCert.ManagerName = certificate.ManagerName;
@@ -178,6 +213,10 @@ namespace backend.Controllers
                     if (incomingSample.Id == 0)
                     {
                         // Add new sample
+                        if (incomingSample.MeasurementDate.HasValue)
+                        {
+                            incomingSample.MeasurementDate = DateTime.SpecifyKind(incomingSample.MeasurementDate.Value, DateTimeKind.Utc);
+                        }
                         incomingSample.CertificateId = existingCert.Id;
                         existingCert.Samples.Add(incomingSample);
                     }
@@ -190,7 +229,16 @@ namespace backend.Controllers
                             existingSample.Root = incomingSample.Root;
                             existingSample.SampleNumber = incomingSample.SampleNumber;
                             existingSample.Description = incomingSample.Description;
-                            existingSample.MeasurementDate = incomingSample.MeasurementDate;
+                            
+                            if (incomingSample.MeasurementDate.HasValue)
+                            {
+                                existingSample.MeasurementDate = DateTime.SpecifyKind(incomingSample.MeasurementDate.Value, DateTimeKind.Utc);
+                            }
+                            else
+                            {
+                                existingSample.MeasurementDate = null;
+                            }
+                            
                             existingSample.Result = incomingSample.Result;
                             existingSample.IsotopeK40 = incomingSample.IsotopeK40;
                             existingSample.IsotopeRa226 = incomingSample.IsotopeRa226;
