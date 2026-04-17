@@ -22,7 +22,7 @@ namespace backend.Models
         public required string Action { get; set; }
 
         /// <summary>وصف تفصيلي للعملية</summary>
-        [MaxLength(500)]
+        [MaxLength(2000)]
         public string? Details { get; set; }
 
         /// <summary>توقيت العملية (UTC)</summary>

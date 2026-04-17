@@ -140,23 +140,25 @@ namespace backend.Controllers
             // ═══ Capture old values for change tracking ═══
             var changes = new List<string>();
             if (existingReception.AnalysisRequestNumber != sampleReception.AnalysisRequestNumber)
-                changes.Add($"رقم طلب التحليل من \"{existingReception.AnalysisRequestNumber}\" إلى \"{sampleReception.AnalysisRequestNumber}\"");
+                changes.Add($"رقم طلب التحليل: \"{existingReception.AnalysisRequestNumber}\" ← \"{sampleReception.AnalysisRequestNumber}\"");
             if (existingReception.NotificationNumber != sampleReception.NotificationNumber)
-                changes.Add($"رقم الإخطار من \"{existingReception.NotificationNumber ?? "—"}\" إلى \"{sampleReception.NotificationNumber ?? "—"}\"");
+                changes.Add($"رقم الإخطار: \"{existingReception.NotificationNumber ?? "—"}\" ← \"{sampleReception.NotificationNumber ?? "—"}\"");
             if (existingReception.DeclarationNumber != sampleReception.DeclarationNumber)
-                changes.Add($"رقم البيان من \"{existingReception.DeclarationNumber ?? "—"}\" إلى \"{sampleReception.DeclarationNumber ?? "—"}\"");
+                changes.Add($"رقم البيان: \"{existingReception.DeclarationNumber ?? "—"}\" ← \"{sampleReception.DeclarationNumber ?? "—"}\"");
             if (existingReception.Supplier != sampleReception.Supplier)
-                changes.Add($"المورد من \"{existingReception.Supplier ?? "—"}\" إلى \"{sampleReception.Supplier ?? "—"}\"");
+                changes.Add($"المورد: \"{existingReception.Supplier ?? "—"}\" ← \"{sampleReception.Supplier ?? "—"}\"");
             if (existingReception.Sender != sampleReception.Sender)
-                changes.Add($"الجهة المرسلة من \"{existingReception.Sender}\" إلى \"{sampleReception.Sender}\"");
+                changes.Add($"الجهة المرسلة: \"{existingReception.Sender}\" ← \"{sampleReception.Sender}\"");
             if (existingReception.Origin != sampleReception.Origin)
-                changes.Add($"المنشأ من \"{existingReception.Origin ?? "—"}\" إلى \"{sampleReception.Origin ?? "—"}\"");
+                changes.Add($"المنشأ: \"{existingReception.Origin ?? "—"}\" ← \"{sampleReception.Origin ?? "—"}\"");
             if (existingReception.PolicyNumber != sampleReception.PolicyNumber)
-                changes.Add($"رقم البوليصة من \"{existingReception.PolicyNumber ?? "—"}\" إلى \"{sampleReception.PolicyNumber ?? "—"}\"");
+                changes.Add($"رقم البوليصة: \"{existingReception.PolicyNumber ?? "—"}\" ← \"{sampleReception.PolicyNumber ?? "—"}\"");
             if (existingReception.FinancialReceiptNumber != sampleReception.FinancialReceiptNumber)
-                changes.Add($"رقم الإيصال المالي من \"{existingReception.FinancialReceiptNumber ?? "—"}\" إلى \"{sampleReception.FinancialReceiptNumber ?? "—"}\"");
+                changes.Add($"رقم الإيصال المالي: \"{existingReception.FinancialReceiptNumber ?? "—"}\" ← \"{sampleReception.FinancialReceiptNumber ?? "—"}\"");
             if (existingReception.CertificateType != sampleReception.CertificateType)
-                changes.Add($"نوع الشهادة من \"{existingReception.CertificateType}\" إلى \"{sampleReception.CertificateType}\"");
+                changes.Add($"نوع الشهادة: \"{existingReception.CertificateType}\" ← \"{sampleReception.CertificateType}\"");
+            if (existingReception.Date.Date != DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc).Date)
+                changes.Add($"تاريخ الاستلام: \"{existingReception.Date:yyyy-MM-dd}\" ← \"{sampleReception.Date:yyyy-MM-dd}\"");
 
             var oldNotification = existingReception.NotificationNumber ?? "—";
             var oldAnalysis = existingReception.AnalysisRequestNumber;
@@ -178,17 +180,63 @@ namespace backend.Controllers
             existingReception.UpdatedBy = userId;
             existingReception.UpdatedByName = userName;
 
-            // Update nested samples
-            _context.ReceptionSamples.RemoveRange(existingReception.Samples);
-
+            // Update nested samples and track changes
+            var sampleChanges = new List<string>();
             if (sampleReception.Samples != null)
             {
-                foreach (var sample in sampleReception.Samples)
+                var incomingSampleIds = sampleReception.Samples.Select(s => s.Id).ToList();
+                var removedSamples = existingReception.Samples.Where(s => !incomingSampleIds.Contains(s.Id)).ToList();
+                
+                foreach (var removed in removedSamples)
                 {
-                    sample.Id = 0;
-                    sample.SampleReceptionId = id;
-                    existingReception.Samples.Add(sample);
+                    sampleChanges.Add($"حذف عينة \"{removed.Description ?? removed.SampleNumber ?? "—"}\"");
+                    _context.ReceptionSamples.Remove(removed);
                 }
+
+                foreach (var incoming in sampleReception.Samples)
+                {
+                    if (incoming.Id == 0) // New sample
+                    {
+                        sampleChanges.Add($"إضافة عينة جديدة \"{incoming.Description ?? incoming.SampleNumber ?? "—"}\"");
+                        incoming.SampleReceptionId = id;
+                        existingReception.Samples.Add(incoming);
+                    }
+                    else // Existing sample
+                    {
+                        var existing = existingReception.Samples.FirstOrDefault(s => s.Id == incoming.Id);
+                        if (existing != null)
+                        {
+                            var sampleFieldChanges = new List<string>();
+                            if (existing.Description != incoming.Description)
+                                sampleFieldChanges.Add($"الوصف: \"{existing.Description ?? "—"}\" ← \"{incoming.Description ?? "—"}\"");
+                            if (existing.SampleNumber != incoming.SampleNumber)
+                                sampleFieldChanges.Add($"رقم العينة: \"{existing.SampleNumber ?? "—"}\" ← \"{incoming.SampleNumber ?? "—"}\"");
+                            if (existing.Root != incoming.Root)
+                                sampleFieldChanges.Add($"الجذر: \"{existing.Root}\" ← \"{incoming.Root}\"");
+
+                            if (sampleFieldChanges.Count > 0)
+                                sampleChanges.Add($"عينة \"{existing.Description ?? existing.SampleNumber ?? "—"}\": تعديل ({string.Join("، ", sampleFieldChanges)})");
+
+                            // Update properties
+                            existing.Description = incoming.Description;
+                            existing.SampleNumber = incoming.SampleNumber;
+                            existing.Root = incoming.Root;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach(var s in existingReception.Samples.ToList())
+                {
+                    sampleChanges.Add($"حذف عينة \"{s.Description ?? s.SampleNumber ?? "—"}\"");
+                    _context.ReceptionSamples.Remove(s);
+                }
+            }
+
+            if (sampleChanges.Count > 0)
+            {
+                changes.Add(string.Join(" | ", sampleChanges));
             }
 
             try

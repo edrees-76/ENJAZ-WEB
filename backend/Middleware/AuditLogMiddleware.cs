@@ -26,11 +26,13 @@ namespace backend.Middleware
             }
 
             // Skip paths that have explicit, detailed audit logging in their controllers
+            // Note: paths include API version prefix, e.g. /api/v1/samples
             var path = context.Request.Path.Value?.ToLower();
             if (path != null && (
                 path.Contains("/auth/login") || path.Contains("/auth/refresh") || path.Contains("/auth/logout") ||
-                path.Contains("/api/samples") || path.Contains("/api/certificates") || 
-                path.Contains("/api/admin-procedures") || path.Contains("/api/users")))
+                path.Contains("/samples") || path.Contains("/certificates") || 
+                path.Contains("/admin-procedures") || path.Contains("/users") ||
+                path.Contains("/hubs/")))
             {
                 await _next(context);
                 return;
@@ -55,11 +57,11 @@ namespace backend.Middleware
                     string entityName = "بيانات";
                     if (path != null)
                     {
-                        if (path.Contains("/api/samples")) entityName = "عينة";
-                        else if (path.Contains("/api/certificates")) entityName = "شهادة";
-                        else if (path.Contains("/api/users")) entityName = "مستخدم";
-                        else if (path.Contains("/api/reports")) entityName = "تقرير";
-                        else if (path.Contains("/api/settings")) entityName = "إعدادات";
+                        if (path.Contains("/samples")) entityName = "عينة";
+                        else if (path.Contains("/certificates")) entityName = "شهادة";
+                        else if (path.Contains("/users")) entityName = "مستخدم";
+                        else if (path.Contains("/reports")) entityName = "تقرير";
+                        else if (path.Contains("/settings")) entityName = "إعدادات";
                     }
 
                     string actionType = method switch

@@ -65,6 +65,9 @@ namespace backend.Data
                 entity.HasIndex(a => a.Timestamp);
                 entity.HasIndex(a => a.UserId);
 
+                // Allow detailed change tracking descriptions
+                entity.Property(a => a.Details).HasMaxLength(2000);
+
                 // Cursor pagination composite index
                 entity.HasIndex(a => new { a.Timestamp, a.Id })
                     .HasDatabaseName("IX_Audit_Cursor");

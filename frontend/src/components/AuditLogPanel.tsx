@@ -186,7 +186,7 @@ export const AuditLogPanel = () => {
                         )}
                       </div>
                       {log.details && (
-                        <p className="text-sm font-medium text-slate-500 dark:text-gray-400 truncate">
+                        <p className="text-sm font-medium text-slate-500 dark:text-gray-400 leading-relaxed whitespace-pre-wrap break-words line-clamp-3 group-hover:line-clamp-none transition-all">
                           {log.details}
                         </p>
                       )}

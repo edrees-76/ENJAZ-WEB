@@ -151,31 +151,88 @@ namespace backend.Controllers
             // ═══ Capture old values for change tracking ═══
             var changes = new List<string>();
             if (existingCert.CertificateType != certificate.CertificateType)
-                changes.Add($"نوع الشهادة من \"{existingCert.CertificateType}\" إلى \"{certificate.CertificateType}\"");
+                changes.Add($"نوع الشهادة: \"{existingCert.CertificateType}\" ← \"{certificate.CertificateType}\"");
             if (existingCert.Sender != certificate.Sender)
-                changes.Add($"الجهة المرسلة من \"{existingCert.Sender ?? "—"}\" إلى \"{certificate.Sender ?? "—"}\"");
+                changes.Add($"الجهة المرسلة: \"{existingCert.Sender ?? "—"}\" ← \"{certificate.Sender ?? "—"}\"");
             if (existingCert.Supplier != certificate.Supplier)
-                changes.Add($"المورد من \"{existingCert.Supplier ?? "—"}\" إلى \"{certificate.Supplier ?? "—"}\"");
+                changes.Add($"المورد: \"{existingCert.Supplier ?? "—"}\" ← \"{certificate.Supplier ?? "—"}\"");
             if (existingCert.Origin != certificate.Origin)
-                changes.Add($"المنشأ من \"{existingCert.Origin ?? "—"}\" إلى \"{certificate.Origin ?? "—"}\"");
+                changes.Add($"المنشأ: \"{existingCert.Origin ?? "—"}\" ← \"{certificate.Origin ?? "—"}\"");
             if (existingCert.AnalysisType != certificate.AnalysisType)
-                changes.Add($"نوع التحليل من \"{existingCert.AnalysisType ?? "—"}\" إلى \"{certificate.AnalysisType ?? "—"}\"");
+                changes.Add($"نوع التحليل: \"{existingCert.AnalysisType ?? "—"}\" ← \"{certificate.AnalysisType ?? "—"}\"");
             if (existingCert.DeclarationNumber != certificate.DeclarationNumber)
-                changes.Add($"رقم البيان من \"{existingCert.DeclarationNumber ?? "—"}\" إلى \"{certificate.DeclarationNumber ?? "—"}\"");
+                changes.Add($"رقم البيان: \"{existingCert.DeclarationNumber ?? "—"}\" ← \"{certificate.DeclarationNumber ?? "—"}\"");
             if (existingCert.NotificationNumber != certificate.NotificationNumber)
-                changes.Add($"رقم الإخطار من \"{existingCert.NotificationNumber ?? "—"}\" إلى \"{certificate.NotificationNumber ?? "—"}\"");
+                changes.Add($"رقم الإخطار: \"{existingCert.NotificationNumber ?? "—"}\" ← \"{certificate.NotificationNumber ?? "—"}\"");
             if (existingCert.PolicyNumber != certificate.PolicyNumber)
-                changes.Add($"رقم البوليصة من \"{existingCert.PolicyNumber ?? "—"}\" إلى \"{certificate.PolicyNumber ?? "—"}\"");
+                changes.Add($"رقم البوليصة: \"{existingCert.PolicyNumber ?? "—"}\" ← \"{certificate.PolicyNumber ?? "—"}\"");
+            if (existingCert.FinancialReceiptNumber != certificate.FinancialReceiptNumber)
+                changes.Add($"رقم الإيصال المالي: \"{existingCert.FinancialReceiptNumber ?? "—"}\" ← \"{certificate.FinancialReceiptNumber ?? "—"}\"");
+            if (existingCert.IssueDate.Date != DateTime.SpecifyKind(certificate.IssueDate, DateTimeKind.Utc).Date)
+                changes.Add($"تاريخ الإصدار: \"{existingCert.IssueDate:yyyy-MM-dd}\" ← \"{certificate.IssueDate:yyyy-MM-dd}\"");
             if (existingCert.SpecialistName != certificate.SpecialistName)
-                changes.Add($"الأخصائي من \"{existingCert.SpecialistName ?? "—"}\" إلى \"{certificate.SpecialistName ?? "—"}\"");
+                changes.Add($"الأخصائي: \"{existingCert.SpecialistName ?? "—"}\" ← \"{certificate.SpecialistName ?? "—"}\"");
             if (existingCert.SectionHeadName != certificate.SectionHeadName)
-                changes.Add($"رئيس القسم من \"{existingCert.SectionHeadName ?? "—"}\" إلى \"{certificate.SectionHeadName ?? "—"}\"");
+                changes.Add($"رئيس القسم: \"{existingCert.SectionHeadName ?? "—"}\" ← \"{certificate.SectionHeadName ?? "—"}\"");
             if (existingCert.ManagerName != certificate.ManagerName)
-                changes.Add($"المدير من \"{existingCert.ManagerName ?? "—"}\" إلى \"{certificate.ManagerName ?? "—"}\"");
+                changes.Add($"المدير: \"{existingCert.ManagerName ?? "—"}\" ← \"{certificate.ManagerName ?? "—"}\"");
             if (existingCert.Notes != certificate.Notes)
-                changes.Add($"الملاحظات من \"{existingCert.Notes ?? "—"}\" إلى \"{certificate.Notes ?? "—"}\"");
+                changes.Add($"الملاحظات: \"{existingCert.Notes ?? "—"}\" ← \"{certificate.Notes ?? "—"}\"");
 
             var certNumber = existingCert.CertificateNumber;
+
+            // ═══ Track sample-level changes ═══
+            var sampleChanges = new List<string>();
+            if (certificate.Samples != null)
+            {
+                // Track removed samples
+                var incomingSampleIds = certificate.Samples.Select(s => s.Id).ToList();
+                var removedSamples = existingCert.Samples.Where(s => !incomingSampleIds.Contains(s.Id)).ToList();
+                foreach (var removed in removedSamples)
+                    sampleChanges.Add($"حذف عينة \"{removed.Description ?? removed.SampleNumber ?? "—"}\"");
+
+                // Track added and modified samples
+                foreach (var incoming in certificate.Samples)
+                {
+                    if (incoming.Id == 0)
+                    {
+                        sampleChanges.Add($"إضافة عينة جديدة \"{incoming.Description ?? incoming.SampleNumber ?? "—"}\"");
+                    }
+                    else
+                    {
+                        var existing = existingCert.Samples.FirstOrDefault(s => s.Id == incoming.Id);
+                        if (existing != null)
+                        {
+                            var sampleFieldChanges = new List<string>();
+                            if (existing.Description != incoming.Description)
+                                sampleFieldChanges.Add($"الوصف: \"{existing.Description ?? "—"}\" ← \"{incoming.Description ?? "—"}\"");
+                            if (existing.Result != incoming.Result)
+                                sampleFieldChanges.Add($"النتيجة: \"{existing.Result ?? "—"}\" ← \"{incoming.Result ?? "—"}\"");
+                            if (existing.SampleNumber != incoming.SampleNumber)
+                                sampleFieldChanges.Add($"رقم العينة: \"{existing.SampleNumber ?? "—"}\" ← \"{incoming.SampleNumber ?? "—"}\"");
+                            if (existing.IsotopeK40 != incoming.IsotopeK40)
+                                sampleFieldChanges.Add($"K-40: \"{existing.IsotopeK40 ?? "—"}\" ← \"{incoming.IsotopeK40 ?? "—"}\"");
+                            if (existing.IsotopeRa226 != incoming.IsotopeRa226)
+                                sampleFieldChanges.Add($"Ra-226: \"{existing.IsotopeRa226 ?? "—"}\" ← \"{incoming.IsotopeRa226 ?? "—"}\"");
+                            if (existing.IsotopeTh232 != incoming.IsotopeTh232)
+                                sampleFieldChanges.Add($"Th-232: \"{existing.IsotopeTh232 ?? "—"}\" ← \"{incoming.IsotopeTh232 ?? "—"}\"");
+                            if (existing.IsotopeRa != incoming.IsotopeRa)
+                                sampleFieldChanges.Add($"Ra: \"{existing.IsotopeRa ?? "—"}\" ← \"{incoming.IsotopeRa ?? "—"}\"");
+                            if (existing.IsotopeCs137 != incoming.IsotopeCs137)
+                                sampleFieldChanges.Add($"Cs-137: \"{existing.IsotopeCs137 ?? "—"}\" ← \"{incoming.IsotopeCs137 ?? "—"}\"");
+                            if (existing.Root != incoming.Root)
+                                sampleFieldChanges.Add($"الجذر: \"{existing.Root}\" ← \"{incoming.Root}\"");
+
+                            if (sampleFieldChanges.Count > 0)
+                                sampleChanges.Add($"عينة \"{existing.Description ?? existing.SampleNumber ?? "—"}\": تعديل ({string.Join("، ", sampleFieldChanges)})");
+                        }
+                    }
+                }
+            }
+            else if (existingCert.Samples.Any())
+            {
+                sampleChanges.Add($"حذف جميع العينات ({existingCert.Samples.Count} عينة)");
+            }
 
             // Update fields
             existingCert.CertificateType = certificate.CertificateType;
@@ -258,12 +315,24 @@ namespace backend.Controllers
             {
                 await _context.SaveChangesAsync();
 
-                // Audit Log
+                // Audit Log — Build comprehensive details
                 var (userId, userName) = GetCurrentUser();
-                var changeDetails = changes.Count > 0 
-                    ? "تم تعديل: " + string.Join(" | ", changes)
-                    : "تم تعديل بيانات العينات";
-                var details = $"{changeDetails} — رقم الشهادة: {certNumber}";
+                var allChanges = new List<string>();
+                if (changes.Count > 0)
+                    allChanges.AddRange(changes);
+                if (sampleChanges.Count > 0)
+                    allChanges.AddRange(sampleChanges);
+
+                string details;
+                if (allChanges.Count > 0)
+                    details = $"شهادة رقم {certNumber} — تم تعديل: {string.Join(" | ", allChanges)}";
+                else
+                    details = $"شهادة رقم {certNumber} — تم حفظ البيانات بدون تغييرات";
+
+                // Truncate to fit DB field (2000 chars)
+                if (details.Length > 2000)
+                    details = details[..1997] + "...";
+
                 await _audit.LogAsync(userId, userName, "تعديل شهادة",
                     details,
                     referenceId: id,

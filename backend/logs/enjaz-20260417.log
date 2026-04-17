@@ -1,0 +1,6 @@
+2026-04-17 10:02:26.665 +02:00 [INF] DataRetention: Starting daily cleanup job {"SourceContext":"backend.Services.DataRetentionService"}
+2026-04-17 10:02:30.111 +02:00 [INF] DataRetention: Cleaned up 3 expired/revoked refresh tokens {"SourceContext":"backend.Services.DataRetentionService"}
+2026-04-17 10:02:33.086 +02:00 [INF] DataRetention: Daily cleanup completed successfully {"SourceContext":"backend.Services.DataRetentionService"}
+2026-04-17 10:04:20.261 +02:00 [INF] Processing alerts in background... {"SourceContext":"backend.BackgroundServices.AlertBackgroundService"}
+2026-04-17 10:04:29.541 +02:00 [WRN] Stopping the server due to DomainUnload or ProcessExit event... {"SourceContext":"Hangfire.Server.BackgroundProcessingServer"}
+2026-04-17 10:04:29.579 +02:00 [WRN] Server edrees76-new:9832:100160a2 caught shutdown signal... {"SourceContext":"Hangfire.Server.BackgroundServerProcess"}

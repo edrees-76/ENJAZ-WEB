@@ -173,7 +173,11 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
 
     const finalData = {
       ...formData,
-      samples: samples.map(({ id, ...rest }) => rest), // Remove UI-only IDs
+      samples: samples.map(({ id, ...rest }) => {
+        // Preserve actual database IDs for existing samples, but send id=0 for newly added UI samples
+        const isTemporaryId = typeof id === 'number' && id > 1000000000000;
+        return isTemporaryId ? { ...rest, id: 0 } : { id, ...rest };
+      }),
     } as Certificate;
 
     let success = false;
