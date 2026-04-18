@@ -389,7 +389,7 @@ export const AdminProcedures = () => {
                             <span className="bg-slate-100 dark:bg-white/10 px-2 py-1 rounded text-slate-800 dark:text-white font-mono text-xs border border-slate-200 dark:border-transparent">{item.referenceNumber}</span>
                           </td>
                           <td className="p-4 text-slate-600 dark:text-slate-300 align-middle" dir="ltr" style={{ textAlign: 'right' }}>
-                            {new Date(item.generatedAt).toLocaleString('en-GB', { hour12: true }).replace('am', 'ص').replace('pm', 'م').replace('AM', 'ص').replace('PM', 'م')}
+                            {new Date(item.generatedAt).toLocaleString('ar-LY', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
                           </td>
                           <td className="p-4 font-medium text-slate-800 dark:text-white align-middle">
                             {item.senderName}

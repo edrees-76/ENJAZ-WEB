@@ -1,5 +1,22 @@
 import { create } from 'zustand';
 import apiClient from '../services/apiClient';
+import { v4 as uuidv4 } from 'uuid';
+import { addOperationToQueue, setEntityCache, getEntityCache } from '../lib/db';
+import { useSyncStore } from './useSyncStore';
+
+// Listen for sync completion to update local state (Incremental Reconciliation)
+const syncChannel = new BroadcastChannel('sync-status-updates');
+syncChannel.onmessage = (event) => {
+  if (event.data.type === 'SYNC_DONE' && event.data.entityType === 'samples') {
+    const { tempId, newRecord } = event.data;
+    if (tempId && newRecord) {
+      // Access the store directly to update
+      const store = useSampleStore.getState();
+      store.reconcileSyncedItem(tempId, newRecord);
+    }
+  }
+};
+
 
 export interface Sample {
   id?: number;
@@ -70,9 +87,10 @@ interface SampleState {
   error: string | null;
   fetchReceptions: () => Promise<void>;
   clearReceptions: () => void;
-  addReception: (reception: SampleReception) => Promise<boolean>;
+  addReception: (reception: SampleReception) => Promise<boolean | 'queued'>;
   deleteReception: (id: number) => Promise<void>;
-  updateReception: (id: number, reception: SampleReception) => Promise<boolean>;
+  updateReception: (id: number, reception: SampleReception) => Promise<boolean | 'queued'>;
+  reconcileSyncedItem: (tempId: number, realRecord: SampleReception) => void;
 }
 
 export const useSampleStore = create<SampleState>((set) => ({
@@ -110,9 +128,27 @@ export const useSampleStore = create<SampleState>((set) => ({
       }
         
       set({ receptions: data, loading: false });
+      
+      // Save to Offline Cache (fire-and-forget — never blocks UI)
+      setEntityCache('receptions', data).catch(e =>
+        console.warn('Cache save failed (non-critical):', e)
+      );
+      return; // Success — exit early
     } catch (error) {
-      console.error('fetchReceptions error, running in DEMO mode:', error);
-      set({ receptions: mockReceptions, loading: false }); // Fallback to mock data for presentation
+      console.error('fetchReceptions: API failed, trying local cache:', error);
+    }
+
+    // API failed — try loading from cache
+    try {
+      const cachedData = await getEntityCache('receptions');
+      if (cachedData) {
+        set({ receptions: cachedData, loading: false, error: null });
+      } else {
+        set({ receptions: [], loading: false });
+      }
+    } catch (cacheError) {
+      console.warn('Cache read also failed:', cacheError);
+      set({ receptions: [], loading: false });
     }
   },
 
@@ -123,10 +159,46 @@ export const useSampleStore = create<SampleState>((set) => ({
   addReception: async (reception) => {
     set({ loading: true });
     try {
-      await apiClient.post('/samples', reception);
-      set(() => ({ loading: false }));
+      // Try online first
+      const response = await apiClient.post('/samples', reception);
+      set({ loading: false });
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // If the backend is down (e.g., ERR_NETWORK, no response) OR offline, fallback to queue
+      if (!error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !navigator.onLine) {
+        const tempId = -Math.floor(Math.random() * 1000000);
+        const optimisticReception: SampleReception = { 
+          ...reception, 
+          id: tempId,
+          status: 'بانتظار المزامنة 🟡' 
+        };
+
+        await addOperationToQueue({
+          id: uuidv4(),
+          method: 'POST',
+          url: '/samples',
+          payload: reception,
+          idempotencyKey: uuidv4(),
+          tempId: tempId
+        });
+        
+        set((state) => {
+          const newReceptions = [optimisticReception, ...state.receptions];
+          // Also update the local offline cache so the optimistic item survives navigation/refresh
+          setEntityCache('receptions', newReceptions).catch(e => 
+            console.warn('Failed to save optimistic reception to cache', e)
+          );
+          
+          return { 
+            receptions: newReceptions,
+            loading: false 
+          };
+        });
+        
+        useSyncStore.getState().refreshCounts();
+        return 'queued';
+      }
+
       set({ error: 'Failed to add sample reception', loading: false });
       return false;
     }
@@ -154,9 +226,44 @@ export const useSampleStore = create<SampleState>((set) => ({
         loading: false
       }));
       return true;
-    } catch (error) {
+    } catch (error: any) {
+      // If the backend is down (e.g., ERR_NETWORK, no response), fallback to offline queue
+      if (!error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || !navigator.onLine) {
+        await addOperationToQueue({
+          id: uuidv4(),
+          method: 'PUT',
+          url: `/samples/${id}`,
+          payload: reception,
+          idempotencyKey: uuidv4(),
+        });
+        
+        useSyncStore.getState().refreshCounts();
+        set((state) => {
+          const updatedReception = { ...state.receptions.find(r => r.id === id), ...reception, status: 'بانتظار التعديل 🟡' } as SampleReception;
+          const newReceptions = state.receptions.map((r) => r.id === id ? updatedReception : r);
+          
+          setEntityCache('receptions', newReceptions).catch(e => 
+            console.warn('Failed to save optimistic update to cache', e)
+          );
+          
+          return {
+            receptions: newReceptions,
+            loading: false
+          };
+        });
+        
+        return 'queued';
+      }
+
       set({ error: 'Failed to update sample reception', loading: false });
       return false;
     }
+  },
+
+  reconcileSyncedItem: (tempId, realRecord) => {
+    set((state) => ({
+      receptions: state.receptions.map((r) => r.id === tempId ? realRecord : r)
+    }));
+    console.log(`[Sample Store] Reconciled item: ${tempId} -> ${realRecord.id}`);
   },
 }));

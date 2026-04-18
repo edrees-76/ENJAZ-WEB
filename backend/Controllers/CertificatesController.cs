@@ -139,11 +139,23 @@ namespace backend.Controllers
 
             var existingCert = await _context.Certificates
                 .Include(c => c.Samples)
+                .Include(c => c.SampleReception)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (existingCert == null)
             {
                 return NotFound(new { message = "الشهادة غير موجودة" });
+            }
+
+            // Check for FinancialReceiptNumber uniqueness (excluding current certificate)
+            if (!string.IsNullOrEmpty(certificate.FinancialReceiptNumber))
+            {
+                var exists = await _context.Certificates
+                    .AnyAsync(c => c.FinancialReceiptNumber == certificate.FinancialReceiptNumber && c.Id != id);
+                if (exists)
+                {
+                    return BadRequest(new { message = $"رقم الإيصال المالي ({certificate.FinancialReceiptNumber}) مستخدم بالفعل في شهادة أخرى." });
+                }
             }
 
             // Disconnect navigation property to prevent EF tracking issues
@@ -248,6 +260,21 @@ namespace backend.Controllers
             if (certificate.ExpiryDate.HasValue)
             {
                 existingCert.ExpiryDate = DateTime.SpecifyKind(certificate.ExpiryDate.Value, DateTimeKind.Utc);
+            }
+
+            // Sync key fields back to sample reception if it exists
+            if (existingCert.SampleReception != null)
+            {
+                if (!string.IsNullOrEmpty(certificate.FinancialReceiptNumber))
+                    existingCert.SampleReception.FinancialReceiptNumber = certificate.FinancialReceiptNumber;
+                if (!string.IsNullOrEmpty(certificate.PolicyNumber))
+                    existingCert.SampleReception.PolicyNumber = certificate.PolicyNumber;
+                if (!string.IsNullOrEmpty(certificate.DeclarationNumber))
+                    existingCert.SampleReception.DeclarationNumber = certificate.DeclarationNumber;
+                if (!string.IsNullOrEmpty(certificate.NotificationNumber))
+                    existingCert.SampleReception.NotificationNumber = certificate.NotificationNumber;
+                
+                existingCert.SampleReception.UpdatedAt = DateTime.UtcNow;
             }
             else
             {

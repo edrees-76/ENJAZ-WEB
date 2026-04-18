@@ -147,6 +147,9 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     
     setIsSaving(false);
     if (success) {
+      if (success === 'queued') {
+         alert('الإنترنت غير متصل حالياً. تم حفظ بيانات التعديل محلياً وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+      }
       onClose();
     } else {
       setErrors(["حدث خطأ أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى."]);
@@ -340,12 +343,16 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-700 dark:text-gray-400 text-xs font-bold mr-1">رقم الإيصال المالي</label>
+                <label className="text-slate-700 dark:text-gray-400 text-xs font-bold mr-1 flex items-center gap-2">
+                  رقم الإيصال المالي
+                  <Lock className="w-3 h-3 opacity-50" />
+                </label>
                 <input 
                   type="text"
+                  readOnly
                   value={formData.financialReceiptNumber || ''}
-                  onChange={e => setFormData({...formData, financialReceiptNumber: e.target.value})}
-                  className="w-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500/30 outline-none transition-all"
+                  className="w-full bg-slate-200/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-500 dark:text-gray-400 cursor-not-allowed outline-none transition-all font-mono"
+                  placeholder="يتم التعبئة تلقائياً"
                 />
               </div>
             </div>

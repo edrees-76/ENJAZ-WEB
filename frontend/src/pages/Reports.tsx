@@ -83,7 +83,7 @@ export const Reports = () => {
       [ReportColumn.EnvSampleCount]: String(row.envSampleCount ?? 0),
       [ReportColumn.ConsSampleCount]: String(row.consSampleCount ?? 0),
       [ReportColumn.CreatedByName]: row.createdByName ?? '',
-      [ReportColumn.IssueDate]: row.issueDate ? new Date(row.issueDate).toLocaleDateString('ar-LY') : '',
+      [ReportColumn.IssueDate]: row.issueDate ? new Date(row.issueDate).toLocaleString('ar-LY', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '',
     };
     return map[col];
   };

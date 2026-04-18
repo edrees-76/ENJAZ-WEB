@@ -58,9 +58,10 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     }
   }, [isOpen]);
 
-  const { createCertificate, updateCertificate, isLoading } = useCertificateStore();
+  const { createCertificate, updateCertificate, isLoading, error: storeError } = useCertificateStore();
   const { receptions } = useSampleStore();
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<Certificate>>({
     certificateType: '',
@@ -129,8 +130,33 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
         })));
         hasInitialized.current = true;
       }
+    } else {
+      // Load draft if exists and we are creating a new certificate from scratch
+      import('../lib/db').then(({ getDraft }) => {
+         getDraft('draft-cert-new').then(draft => {
+            if (draft && draft.data) {
+               setFormData(draft.data.formData || {});
+               setSamples(draft.data.samples || []);
+               setIsDirty(true);
+            }
+         });
+      });
+      hasInitialized.current = true;
     }
   }, [isOpen, certificate, linkedReceptionId, receptions]);
+
+  // Auto-save Debounce Effect
+  useEffect(() => {
+    if (!isOpen || !isDirty || certificate) return; // Only auto-save for new creations for now
+    
+    const timeoutId = setTimeout(() => {
+       import('../lib/db').then(({ saveDraft }) => {
+          saveDraft('draft-cert-new', { formData, samples });
+       });
+    }, 1500); // 1.5 seconds debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [formData, samples, isDirty, isOpen, certificate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -156,17 +182,52 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     setValidationError(null);
 
     // Basic Validation
-    const requiredFields = ['certificateType', 'sender', 'supplier'];
-    const missing = requiredFields.filter(f => !formData[f as keyof Certificate]);
+    const requiredFields = [
+      { key: 'certificateType', label: 'نوع الشهادة' },
+      { key: 'issueDate', label: 'تاريخ الإصدار' },
+      { key: 'notificationNumber', label: 'رقم الإخطار' },
+      { key: 'declarationNumber', label: 'رقم الإقرار الجمركي' },
+      { key: 'sender', label: 'الجهة المرسلة' },
+      { key: 'supplier', label: 'الشركة الموردة' },
+      { key: 'financialReceiptNumber', label: 'رقم الإيصال المالي' }
+    ];
+    
+    if (formData.certificateType === 'بيئية') {
+      requiredFields.push({ key: 'analysisType', label: 'نوع التحليل' });
+    }
+
+    const missing = requiredFields.filter(f => !formData[f.key as keyof Certificate]);
     
     if (missing.length > 0) {
-      setValidationError(`يرجى ملء الحقول الإلزامية: ${missing.join(', ')}`);
+      const missingLabels = missing.map(m => m.label).join('، ');
+      setValidationError(`يرجى ملء الحقول الإلزامية التالية: ${missingLabels}`);
       return;
     }
 
     if (samples.length === 0) {
       setValidationError('يجب إضافة عينة واحدة على الأقل');
       return;
+    }
+
+    // Validate samples
+    const isEnvironmental = formData.certificateType === 'بيئية';
+    for (let i = 0; i < samples.length; i++) {
+      const s = samples[i];
+      if (!s.sampleNumber || !s.description || !s.measurementDate) {
+        setValidationError(`يرجى ملء جميع البيانات الأساسية (رقم العينة، البيان، تاريخ القياس) للعينة رقم ${i + 1}`);
+        return;
+      }
+      if (isEnvironmental) {
+        if (!s.isotopeK40 || !s.isotopeRa226 || !s.isotopeTh232 || !s.isotopeRa || !s.isotopeCs137) {
+          setValidationError(`يرجى إدخال جميع نتائج النظائر المشعة للعينة رقم ${i + 1}`);
+          return;
+        }
+      } else {
+        if (!s.result) {
+          setValidationError(`يرجى إدخال نتيجة التحليل للعينة رقم ${i + 1}`);
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -194,11 +255,25 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
 
     setIsSubmitting(false);
     if (success) {
-      onClose();
-      
-      // Open the print page automatically for newly created certificates
-      if (newCertId) {
-        window.open(`/print/certificate/${newCertId}?pdf=true`, '_blank');
+      if (newCertId === -1) {
+        setSuccessMessage('الإنترنت غير متصل حالياً. تم حفظ بيانات الشهادة محلياً في جهازك وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+        
+        // Remove draft upon successful queue
+        import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-cert-new'));
+
+        setTimeout(() => {
+           setSuccessMessage(null);
+           onClose();
+        }, 5000);
+      } else {
+        // Remove draft upon successful save
+        import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-cert-new'));
+        onClose();
+        
+        // Open the print page automatically for newly created certificates
+        if (newCertId) {
+          window.open(`/print/certificate/${newCertId}?pdf=true`, '_blank');
+        }
       }
     }
   };
@@ -236,6 +311,19 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
       {/* Form Body */}
       <div className={`p-10 ${isFullScreen ? '' : 'overflow-y-auto custom-scrollbar'} flex-1 relative`}>
         
+        {/* Success Message for Offline Queue */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg shrink-0">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-emerald-800">تم الحفظ محلياً بنجاح</h4>
+              <p className="text-emerald-700 text-sm mt-1">{successMessage}</p>
+            </div>
+          </div>
+        )}
+        
         {/* Unsaved Changes Confirmation Modal */}
         {showConfirmClose && (
           <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -266,15 +354,19 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
           </div>
         )}
 
-        {validationError && (
+        {(validationError || storeError) && (
           <div className="glass-card bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] mb-10 animate-in slide-in-from-top-4 duration-300">
             <div className="flex gap-4">
               <div className="p-2 bg-red-500/20 rounded-xl text-red-500 h-fit">
                 <AlertCircle className="w-6 h-6"/>
               </div>
               <div>
-                <h3 className="text-red-500 font-black text-lg mb-1">تنبيه: بيانات غير مكتملة</h3>
-                <pre className="text-sm text-red-400 dark:text-red-300 font-bold whitespace-pre-wrap leading-relaxed">{validationError}</pre>
+                <h3 className="text-red-500 font-black text-lg mb-1">
+                  {validationError ? 'تنبيه: بيانات غير مكتملة' : 'خطأ في معالجة الطلب'}
+                </h3>
+                <pre className="text-sm text-red-400 dark:text-red-300 font-bold whitespace-pre-wrap leading-relaxed">
+                  {validationError || storeError}
+                </pre>
               </div>
             </div>
           </div>
@@ -285,7 +377,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
           {/* Section: Type & Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 glass-card p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.01]">
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">نوع الشهادة التحليلية</label>
+              <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">نوع الشهادة التحليلية <span className="text-red-500 font-bold">*</span></label>
               <div className="relative">
                 <select 
                   disabled={!!linkedReceptionId || !!certificate}
@@ -312,7 +404,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
               </div>
             </div>
             <div className="space-y-3">
-              <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">تاريخ إصدار الشهادة</label>
+              <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">تاريخ إصدار الشهادة <span className="text-red-500 font-bold">*</span></label>
               <input 
                 type={formData.issueDate ? "date" : "text"}
                 name="issueDate" 
@@ -335,29 +427,29 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
              </h3>
              <div className="glass-card p-10 rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.01] grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإخطار</label>
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإخطار <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="notificationNumber" value={formData.notificationNumber} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإقرار الجمركي</label>
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإقرار الجمركي <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="declarationNumber" value={formData.declarationNumber} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
                 {formData.certificateType === 'بيئية' && (
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">نوع التحليل</label>
+                    <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">نوع التحليل <span className="text-red-500 font-bold">*</span></label>
                     <input type="text" name="analysisType" value={formData.analysisType} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-slate-300" placeholder="مثال: تحليل إشعاعي كامل" />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الجهة المرسلة</label>
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الجهة المرسلة <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="sender" value={formData.sender} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الشركة الموردة</label>
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الشركة الموردة <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="supplier" value={formData.supplier} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإيصال المالي</label>
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإيصال المالي <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="financialReceiptNumber" value={formData.financialReceiptNumber} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
              </div>

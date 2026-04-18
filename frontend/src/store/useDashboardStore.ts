@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import apiClient from '../services/apiClient';
+import { setEntityCache, getEntityCache } from '../lib/db';
 
 interface MonthlyStat {
   month: string;
@@ -27,29 +28,6 @@ interface DashboardState {
   fetchStats: () => Promise<void>;
 }
 
-const mockStats: DashboardStats = {
-  totalSamples: 1250,
-  samplesToday: 24,
-  samplesEnvironmental: 850,
-  samplesConsumable: 400,
-  totalCertificates: 1100,
-  certificatesToday: 15,
-  certificatesEnvironmental: 780,
-  certificatesConsumable: 320,
-  monthlySamples: [
-    { month: 'يناير', environmental: 65, consumable: 30 },
-    { month: 'فبراير', environmental: 85, consumable: 45 },
-    { month: 'مارس', environmental: 120, consumable: 55 },
-    { month: 'أبريل', environmental: 95, consumable: 40 }
-  ],
-  monthlyCertificates: [
-    { month: 'يناير', environmental: 60, consumable: 25 },
-    { month: 'فبراير', environmental: 80, consumable: 40 },
-    { month: 'مارس', environmental: 110, consumable: 50 },
-    { month: 'أبريل', environmental: 90, consumable: 38 }
-  ]
-};
-
 export const useDashboardStore = create<DashboardState>((set) => ({
   stats: null,
   loading: false,
@@ -58,12 +36,35 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ loading: true, error: null });
     try {
       const response = await apiClient.get('/dashboard/stats');
-      set({ stats: response.data, loading: false });
+      const data = response.data;
+      set({ stats: data, loading: false });
+
+      // Save to Offline Cache (fire-and-forget — never blocks UI)
+      setEntityCache('dashboard_stats', data).catch(e =>
+        console.warn('Cache save failed (non-critical):', e)
+      );
+      return; // Success — exit early
     } catch (err: any) {
-      if (import.meta.env.DEV) console.debug("DEMO MODE: Falling back to mock dashboard stats");
+      console.error('fetchStats: API failed, trying local cache:', err);
+    }
+
+    // API failed — try loading from cache
+    try {
+      const cachedData = await getEntityCache('dashboard_stats');
+      if (cachedData) {
+        set({ stats: cachedData, loading: false, error: null });
+      } else {
+        set({ 
+          stats: null,
+          error: "لا يمكن الوصول للخادم ولا يوجد بيانات مخزنة محلياً", 
+          loading: false 
+        });
+      }
+    } catch (cacheError) {
+      console.warn('Cache read also failed:', cacheError);
       set({ 
-        stats: mockStats,
-        error: null, 
+        stats: null,
+        error: "تعذر الاتصال بالخادم", 
         loading: false 
       });
     }

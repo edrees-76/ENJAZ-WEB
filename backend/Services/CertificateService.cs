@@ -22,6 +22,16 @@ namespace backend.Services
 
         public async Task<Certificate> CreateCertificateAsync(Certificate certificate)
         {
+            // Check for FinancialReceiptNumber uniqueness
+            if (!string.IsNullOrEmpty(certificate.FinancialReceiptNumber))
+            {
+                var exists = await _context.Certificates.AnyAsync(c => c.FinancialReceiptNumber == certificate.FinancialReceiptNumber);
+                if (exists)
+                {
+                    throw new InvalidOperationException($"رقم الإيصال المالي ({certificate.FinancialReceiptNumber}) مستخدم بالفعل في شهادة أخرى.");
+                }
+            }
+
             // Execute within a transaction with an exclusive lock on the Certificates table (or serializable level)
             // to ensure no other request gets the same sequence number.
             using var transaction = await _context.Database.BeginTransactionAsync();

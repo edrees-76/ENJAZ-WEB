@@ -314,10 +314,10 @@ const Certificates = () => {
                           {cert.issueDate ? (
                             <>
                               <span className="font-bold text-slate-900 dark:text-white text-sm">
-                                {new Date(cert.issueDate).toLocaleDateString('en-US')}
+                                {new Date(cert.issueDate).toLocaleDateString('ar-LY', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                               </span>
-                              <span className="text-[11px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
-                                {new Date(cert.issueDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              <span className="text-[11px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md" dir="ltr">
+                                {new Date(cert.issueDate).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit', hour12: true })}
                               </span>
                             </>
                           ) : (

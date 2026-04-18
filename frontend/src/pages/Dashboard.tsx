@@ -8,6 +8,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useSessionTimeout } from '../hooks/useSessionTimeout';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { NotificationBell } from '../components/NotificationBell';
+import { SyncIndicator } from '../components/SyncIndicator';
 
 const DateTimeWidget = ({ username }: { username: string }) => {
   const [time, setTime] = useState(new Date());
@@ -128,10 +129,15 @@ export const Dashboard = () => {
                </button>
              )}
           </div>
-          {isHomePage && (
+          {isHomePage ? (
             <div className="flex-1 flex justify-end items-center gap-4">
+               <SyncIndicator />
                <NotificationBell />
                <DateTimeWidget username={user?.fullName || user?.username || 'مدير النظام'} />
+            </div>
+          ) : (
+            <div className="flex-1 flex justify-end items-center gap-4">
+               <SyncIndicator />
             </div>
           )}
         </header>

@@ -18,6 +18,7 @@
     "axios": "^1.14.0",
     "date-fns": "^3.6.0",
     "framer-motion": "^12.4.7",
+    "idb": "^8.0.3",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",
     "react-barcode": "^1.6.1",
@@ -25,6 +26,7 @@
     "react-qr-code": "^2.0.18",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
+    "uuid": "^13.0.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.27",
     "eslint": "^9.39.4",

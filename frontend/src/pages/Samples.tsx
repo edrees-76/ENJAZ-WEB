@@ -4,7 +4,6 @@ import {
   Beaker,
   Plus,
   Trash2,
-  Save,
   ChevronRight,
   FileText,
   AlertCircle,
@@ -13,7 +12,8 @@ import {
   Tag,
   Hash,
   Activity,
-  Leaf
+  Leaf,
+  Lock
 } from 'lucide-react';
 import { useSampleStore } from '../store/useSampleStore';
 import { useNavigationLock } from '../hooks/useNavigationLock';
@@ -81,6 +81,8 @@ export const Samples = () => {
     formData.certificateType !== '' ||
     currentSamples.length > 0;
 
+
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -97,7 +99,41 @@ export const Samples = () => {
       setShowAddForm(true);
     }
     
+    // Load draft if exists
+    import('../lib/db').then(({ getDraft }) => {
+      getDraft('draft-reception-new').then(draft => {
+        if (draft && draft.data) {
+          setFormData(draft.data.formData || {
+            analysisRequestNumber: '',
+            notificationNumber: '',
+            declarationNumber: '',
+            supplier: '',
+            sender: '',
+            origin: '',
+            policyNumber: '',
+            financialReceiptNumber: '',
+            certificateType: '',
+            date: toLocalDateString(),
+          });
+          setCurrentSamples(draft.data.currentSamples || []);
+          setShowAddForm(true); // Open form if there's a draft
+        }
+      });
+    });
   }, []);
+
+  // Auto-save Debounce Effect
+  useEffect(() => {
+    if (!showAddForm || !isFormDirty) return;
+    
+    const timeoutId = setTimeout(() => {
+      import('../lib/db').then(({ saveDraft }) => {
+        saveDraft('draft-reception-new', { formData, currentSamples });
+      });
+    }, 1500);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData, currentSamples, isFormDirty, showAddForm]);
 
   // Smart Navigation Lock: Only lock if form has data
   useEffect(() => {
@@ -141,6 +177,8 @@ export const Samples = () => {
     setFormErrors([]);
     setIsManualSender(false);
     setShowCancelConfirm(false);
+    // Delete draft on cancel
+    import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-reception-new'));
   };
 
   const handleConfirmDelete = () => {
@@ -179,6 +217,13 @@ export const Samples = () => {
     });
 
     if (success) {
+      if (success === 'queued') {
+         alert('الإنترنت غير متصل حالياً. تم حفظ بيانات الاستلام محلياً في جهازك وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+      }
+      
+      // Remove draft upon successful queue or save
+      import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-reception-new'));
+
       setIsManualSender(false);
       setFormErrors([]);
       setFormData({
@@ -483,13 +528,14 @@ export const Samples = () => {
                     <label className="text-slate-500 dark:text-gray-400 text-sm font-medium mr-1 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-cyan-600 dark:text-cyan-500" />
                       رقم الإيصال المالي
+                      <Lock className="w-3 h-3 opacity-50" title="يتم تعبئته تلقائياً" />
                     </label>
                     <input
                       type="text"
+                      readOnly
                       value={formData.financialReceiptNumber}
-                      onChange={(e) => setFormData({ ...formData, financialReceiptNumber: e.target.value })}
-                      className="w-full bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3.5 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
-                      placeholder="اختياري"
+                      className="w-full bg-slate-200/50 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3.5 text-slate-500 dark:text-gray-400 cursor-not-allowed focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500 font-mono"
+                      placeholder="يتم التعبئة تلقائياً"
                     />
                   </div>
                 </div>
@@ -809,9 +855,17 @@ export const Samples = () => {
                               <td className="p-5 text-center">
                                 <span className={`text-sm font-mono p-2.5 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
                               </td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base font-bold">{item.sender}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-xs font-bold whitespace-nowrap">{item.sender}</td>
                               <td className="p-5 text-slate-900 dark:text-white text-base">{item.supplier || '-'}</td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono">{item.financialReceiptNumber || '-'}</td>
+                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono text-center">
+                                {item.financialReceiptNumber ? (
+                                  <span className="bg-slate-100 dark:bg-white/5 px-3 py-1 rounded-lg border border-slate-200 dark:border-white/10">
+                                    {item.financialReceiptNumber}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 italic text-xs">---</span>
+                                )}
+                              </td>
                               <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
                               <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap text-center">
                                 {(() => {
