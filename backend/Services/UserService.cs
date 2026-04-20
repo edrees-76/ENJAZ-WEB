@@ -233,17 +233,17 @@ namespace backend.Services
             var existingAdmin = await _db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
             if (existingAdmin != null)
             {
-                // Unblock user by setting password if it doesn't match the known backup password
-                var knownPassword = "Jkck8PBeit5xLyPM";
-                if (!_passwordService.VerifyPassword(knownPassword, existingAdmin.PasswordHash))
+                // Recovery: Only reset password if ENJAZ_ADMIN_RECOVERY_PASSWORD env var is explicitly set
+                var recoveryPassword = Environment.GetEnvironmentVariable("ENJAZ_ADMIN_RECOVERY_PASSWORD");
+                if (!string.IsNullOrEmpty(recoveryPassword))
                 {
-                    existingAdmin.PasswordHash = _passwordService.HashPassword(knownPassword);
+                    existingAdmin.PasswordHash = _passwordService.HashPassword(recoveryPassword);
                     await _db.SaveChangesAsync();
-                    _logger.LogInformation("✅ تم إعادة ضبط كلمة مرور مدير النظام استثنائياً لفك الحظر.");
+                    _logger.LogWarning("⚠️ تم إعادة ضبط كلمة مرور مدير النظام عبر متغير بيئي. يُرجى إزالة المتغير بعد الاستخدام.");
                 }
                 else
                 {
-                    _logger.LogInformation("✅ حساب مدير النظام موجود بالفعل (لم يتم تغيير كلمة المرور)");
+                    _logger.LogInformation("✅ حساب مدير النظام موجود بالفعل.");
                 }
                 return;
             }

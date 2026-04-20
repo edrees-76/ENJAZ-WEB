@@ -171,25 +171,27 @@ const GeneralTab = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () 
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-white/5 p-1 rounded-xl border border-slate-200/50 dark:border-white/5">
             <button
               onClick={() => {
-                const v = Math.max(0.8, fontScale - 0.1);
+                const v = Math.max(0.5, fontScale - 0.01);
                 setFontScale(v);
                 updateUserSettings({ fontSizeScale: v });
               }}
-              disabled={fontScale <= 0.8}
+              disabled={fontScale <= 0.5}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/10 hover:shadow-sm disabled:opacity-30 transition-all text-slate-700 dark:text-slate-300"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <div className="w-12 text-center flex flex-col items-center justify-center">
-              <span className="font-bold text-sm text-sky-600 dark:text-sky-400" dir="ltr">{fontScale.toFixed(1)}x</span>
+            <div className="w-16 text-center flex flex-col items-center justify-center">
+              <span className="font-bold text-sm text-sky-600 dark:text-sky-400" dir="ltr">
+                {Math.round((fontScale - 1) * 100) === 0 ? '0%' : (Math.round((fontScale - 1) * 100) > 0 ? `+${Math.round((fontScale - 1) * 100)}%` : `${Math.round((fontScale - 1) * 100)}%`)}
+              </span>
             </div>
             <button
               onClick={() => {
-                const v = Math.min(1.4, fontScale + 0.1);
+                const v = Math.min(2.0, fontScale + 0.01);
                 setFontScale(v);
                 updateUserSettings({ fontSizeScale: v });
               }}
-              disabled={fontScale >= 1.4}
+              disabled={fontScale >= 2.0}
               className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white dark:hover:bg-white/10 hover:shadow-sm disabled:opacity-30 transition-all text-slate-700 dark:text-slate-300"
             >
               <Plus className="w-4 h-4" />

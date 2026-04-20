@@ -3,21 +3,23 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using Asp.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Controllers
 {
-    // Temporarily disabled for testing
-    // [Authorize]
+    [Authorize]
     [ApiVersion("1.0")]
     [Route("api/v{version:apiVersion}/dashboard")]
     [ApiController]
     public class DashboardController : ControllerBase
     {
         private readonly Data.EnjazDbContext _context;
+        private readonly ILogger<DashboardController> _logger;
 
-        public DashboardController(Data.EnjazDbContext context)
+        public DashboardController(Data.EnjazDbContext context, ILogger<DashboardController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("stats")]
@@ -133,8 +135,8 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                var fullError = ex.InnerException != null ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
-                return StatusCode(500, new { message = fullError, stackTrace = ex.StackTrace });
+                _logger.LogError(ex, "Error loading dashboard statistics");
+                return StatusCode(500, new { message = "حدث خطأ أثناء تحميل الإحصائيات. يرجى المحاولة لاحقاً." });
             }
         }
     }

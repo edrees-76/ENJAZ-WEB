@@ -5,14 +5,14 @@ import { useSampleStore } from '../store/useSampleStore';
 import { useUIStore } from '../store/useUIStore';
 import type { Certificate, CertificateSample } from '../store/useCertificateStore';
 
-const toLocalDateString = () => {
+const toUTCDateString = () => {
   const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+  return d.toISOString().split('T')[0];
 };
 
-const toLocalISOString = () => {
+const toUTCISOString = () => {
   const d = new Date();
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, -1);
+  return d.toISOString().slice(0, -1);
 };
 
 interface CertificateFormModalProps {
@@ -55,10 +55,11 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     if (!isOpen) {
       setIsDirty(false);
       setShowConfirmClose(false);
+      setEmptyRequiredFields(new Set());
     }
   }, [isOpen]);
 
-  const { createCertificate, updateCertificate, isLoading, error: storeError } = useCertificateStore();
+  const { createCertificate, updateCertificate, isLoading, error: storeError, clearError } = useCertificateStore();
   const { receptions } = useSampleStore();
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -73,7 +74,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     notificationNumber: '',
     policyNumber: '',
     financialReceiptNumber: '',
-    issueDate: toLocalDateString(),
+    issueDate: toUTCDateString(),
     specialistName: '',
     sectionHeadName: '',
     managerName: '',
@@ -110,7 +111,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
           notificationNumber: reception.notificationNumber || '',
           policyNumber: reception.policyNumber || '',
           financialReceiptNumber: reception.financialReceiptNumber || '',
-          issueDate: toLocalISOString(),
+          issueDate: toUTCISOString(),
           specialistName: '',
           sectionHeadName: '',
           managerName: '',
@@ -175,18 +176,25 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emptyRequiredFields, setEmptyRequiredFields] = useState<Set<string>>(new Set());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return; // Prevent double-click
     setValidationError(null);
 
-    // Basic Validation
+    // Accumulate all errors
+    const errors: string[] = [];
+    const emptyFieldsSet = new Set<string>();
+
+    // 1. Validate Form Fields
     const requiredFields = [
       { key: 'certificateType', label: 'نوع الشهادة' },
       { key: 'issueDate', label: 'تاريخ الإصدار' },
       { key: 'notificationNumber', label: 'رقم الإخطار' },
       { key: 'declarationNumber', label: 'رقم الإقرار الجمركي' },
+      { key: 'policyNumber', label: 'رقم البوليصة' },
+      { key: 'origin', label: 'بلد المنشأ' },
       { key: 'sender', label: 'الجهة المرسلة' },
       { key: 'supplier', label: 'الشركة الموردة' },
       { key: 'financialReceiptNumber', label: 'رقم الإيصال المالي' }
@@ -196,40 +204,69 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
       requiredFields.push({ key: 'analysisType', label: 'نوع التحليل' });
     }
 
-    const missing = requiredFields.filter(f => !formData[f.key as keyof Certificate]);
-    
-    if (missing.length > 0) {
-      const missingLabels = missing.map(m => m.label).join('، ');
-      setValidationError(`يرجى ملء الحقول الإلزامية التالية: ${missingLabels}`);
-      return;
-    }
+    requiredFields.forEach(f => {
+      const value = formData[f.key as keyof Certificate];
+      if (!value || (typeof value === 'string' && !value.trim())) {
+        emptyFieldsSet.add(f.key);
+      }
+    });
 
+    if (emptyFieldsSet.size > 0) {
+      const missingLabels = requiredFields
+        .filter(f => emptyFieldsSet.has(f.key))
+        .map(m => m.label)
+        .join('، ');
+      errors.push(`الحقول الأساسية الناقصة: ${missingLabels}`);
+    }
+    setEmptyRequiredFields(emptyFieldsSet);
+
+    // 2. Validate Samples existence
     if (samples.length === 0) {
-      setValidationError('يجب إضافة عينة واحدة على الأقل');
+      errors.push('يجب إضافة عينة واحدة على الأقل');
+    } else {
+      // 3. Validate Individual Samples
+      const isEnvironmental = formData.certificateType === 'بيئية';
+      const sampleErrors: string[] = [];
+
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i];
+        const missingInSample: string[] = [];
+
+        if (!s.sampleNumber) missingInSample.push('رقم العينة');
+        if (!s.description) missingInSample.push('البيان');
+        if (!s.measurementDate) missingInSample.push('تاريخ القياس');
+
+        if (isEnvironmental) {
+          const isotopes = [
+            { key: 'isotopeK40', label: 'K40' },
+            { key: 'isotopeRa226', label: 'Ra226' },
+            { key: 'isotopeTh232', label: 'Th232' },
+            { key: 'isotopeRa', label: 'Raeq' },
+            { key: 'isotopeCs137', label: 'Cs137' }
+          ];
+          isotopes.forEach(iso => {
+            if (!s[iso.key as keyof CertificateSample]) missingInSample.push(iso.label);
+          });
+        } else {
+          if (!s.result) missingInSample.push('نتيجة التحليل');
+        }
+
+        if (missingInSample.length > 0) {
+          sampleErrors.push(`العينة رقم ${i + 1}: (${missingInSample.join('، ')})`);
+        }
+      }
+
+      if (sampleErrors.length > 0) {
+        errors.push(`بيانات العينات الناقصة:\n${sampleErrors.join('\n')}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      setValidationError(errors.join('\n\n'));
       return;
     }
 
-    // Validate samples
-    const isEnvironmental = formData.certificateType === 'بيئية';
-    for (let i = 0; i < samples.length; i++) {
-      const s = samples[i];
-      if (!s.sampleNumber || !s.description || !s.measurementDate) {
-        setValidationError(`يرجى ملء جميع البيانات الأساسية (رقم العينة، البيان، تاريخ القياس) للعينة رقم ${i + 1}`);
-        return;
-      }
-      if (isEnvironmental) {
-        if (!s.isotopeK40 || !s.isotopeRa226 || !s.isotopeTh232 || !s.isotopeRa || !s.isotopeCs137) {
-          setValidationError(`يرجى إدخال جميع نتائج النظائر المشعة للعينة رقم ${i + 1}`);
-          return;
-        }
-      } else {
-        if (!s.result) {
-          setValidationError(`يرجى إدخال نتيجة التحليل للعينة رقم ${i + 1}`);
-          return;
-        }
-      }
-    }
-
+    setEmptyRequiredFields(new Set());
     setIsSubmitting(true);
 
     const finalData = {
@@ -355,18 +392,26 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
         )}
 
         {(validationError || storeError) && (
-          <div className="glass-card bg-red-500/10 border border-red-500/20 p-6 rounded-[2rem] mb-10 animate-in slide-in-from-top-4 duration-300">
-            <div className="flex gap-4">
-              <div className="p-2 bg-red-500/20 rounded-xl text-red-500 h-fit">
-                <AlertCircle className="w-6 h-6"/>
-              </div>
-              <div>
-                <h3 className="text-red-500 font-black text-lg mb-1">
-                  {validationError ? 'تنبيه: بيانات غير مكتملة' : 'خطأ في معالجة الطلب'}
-                </h3>
-                <pre className="text-sm text-red-400 dark:text-red-300 font-bold whitespace-pre-wrap leading-relaxed">
-                  {validationError || storeError}
-                </pre>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-md w-full border border-red-100 dark:border-red-900/30 animate-in zoom-in-95 duration-300">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="p-4 bg-red-100 dark:bg-red-500/20 rounded-full text-red-500">
+                  <AlertCircle className="w-10 h-10"/>
+                </div>
+                <div>
+                  <h3 className="text-red-600 dark:text-red-400 font-black text-xl mb-3">
+                    {validationError ? 'تنبيه: بيانات غير مكتملة' : 'خطأ في معالجة الطلب'}
+                  </h3>
+                  <div className="text-sm text-slate-600 dark:text-slate-300 font-bold whitespace-pre-wrap leading-relaxed">
+                    {validationError || storeError}
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setValidationError(null); clearError(); }}
+                  className="w-full mt-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-lg transition-all active:scale-95 shadow-lg shadow-red-500/20"
+                >
+                  حسناً، فهمت
+                </button>
               </div>
             </div>
           </div>
@@ -434,6 +479,14 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                   <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم الإقرار الجمركي <span className="text-red-500 font-bold">*</span></label>
                   <input type="text" name="declarationNumber" value={formData.declarationNumber} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">رقم البوليصة <span className="text-red-500 font-bold">*</span></label>
+                  <input type="text" name="policyNumber" value={formData.policyNumber} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">بلد المنشأ <span className="text-red-500 font-bold">*</span></label>
+                  <input type="text" name="origin" value={formData.origin} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
+                </div>
                 {formData.certificateType === 'بيئية' && (
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">نوع التحليل <span className="text-red-500 font-bold">*</span></label>
@@ -442,7 +495,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                 )}
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الجهة المرسلة <span className="text-red-500 font-bold">*</span></label>
-                  <input type="text" name="sender" value={formData.sender} onChange={handleInputChange} className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all" />
+                  <input type="text" name="sender" value={formData.sender} onChange={handleInputChange} className={`w-full p-4 bg-white dark:bg-slate-900 border rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all ${emptyRequiredFields.has('sender') && !formData.sender ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 dark:border-white/10'}`} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الشركة الموردة <span className="text-red-500 font-bold">*</span></label>
@@ -470,18 +523,18 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                     <thead className="bg-slate-100 dark:bg-white/5 border-b border-slate-200 dark:border-white/10">
                       <tr className="text-slate-900 dark:text-gray-300 text-xs font-black uppercase tracking-widest">
                         <th className="p-5 w-16">ت</th>
-                        <th className="p-5">رقم العينة</th>
-                        <th className="p-5">البيان</th>
-                        <th className="p-5 text-center">تاريخ القياس</th>
+                        <th className="p-5 min-w-[120px]">رقم العينة</th>
+                        <th className="p-5 min-w-[300px]">البيان</th>
+                        <th className="p-5 text-center">تاريخ القياس <span className="text-red-500 font-bold">*</span></th>
                         {formData.certificateType === 'استهلاكية' ? (
-                          <th className="p-5 text-center">نتيجة التحليل</th>
+                          <th className="p-5 text-center">نتيجة التحليل <span className="text-red-500 font-bold">*</span></th>
                         ) : (
                           <>
-                            <th className="p-5 text-center normal-case">K<sub>40</sub></th>
-                            <th className="p-5 text-center normal-case">Ra<sub>226</sub></th>
-                            <th className="p-5 text-center normal-case">Th<sub>232</sub></th>
-                            <th className="p-5 text-center normal-case">R<sub>aeq</sub></th>
-                            <th className="p-5 text-center normal-case">Cs<sub>137</sub></th>
+                            <th className="p-5 text-center normal-case">K<sub>40</sub> <span className="text-red-500 font-bold">*</span></th>
+                            <th className="p-5 text-center normal-case">Ra<sub>226</sub> <span className="text-red-500 font-bold">*</span></th>
+                            <th className="p-5 text-center normal-case">Th<sub>232</sub> <span className="text-red-500 font-bold">*</span></th>
+                            <th className="p-5 text-center normal-case">R<sub>aeq</sub> <span className="text-red-500 font-bold">*</span></th>
+                            <th className="p-5 text-center normal-case">Cs<sub>137</sub> <span className="text-red-500 font-bold">*</span></th>
                           </>
                         )}
                         <th className="p-5 w-20"></th>
@@ -493,10 +546,10 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                           <td className="p-4 text-center">
                             <span className="p-2 bg-slate-200 dark:bg-white/5 rounded-lg text-xs font-mono font-bold">{index + 1}</span>
                           </td>
-                          <td className="p-4">
+                          <td className="p-4 min-w-[120px]">
                             <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20" value={sample.sampleNumber} onChange={(e) => handleSampleChange(sample.id, 'sampleNumber', e.target.value)} />
                           </td>
-                          <td className="p-4">
+                          <td className="p-4 min-w-[300px]">
                             <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500/20" value={sample.description} onChange={(e) => handleSampleChange(sample.id, 'description', e.target.value)} />
                           </td>
                           <td className="p-4">

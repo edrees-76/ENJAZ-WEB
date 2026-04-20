@@ -56,11 +56,21 @@ export async function executeOperation(op: SyncOperation) {
       await updateOperationStatus(op.id, { status: 'failed', errorReason: `Client Error (${status})` });
     } else {
       // Server error or Network: Increment retry count
-      await updateOperationStatus(op.id, { 
-        status: 'retrying', 
-        retryCount: (op.retryCount || 0) + 1,
-        errorReason: error.message 
-      });
+      const MAX_RETRIES = 5;
+      const nextRetryCount = (op.retryCount || 0) + 1;
+      
+      if (nextRetryCount > MAX_RETRIES) {
+        await updateOperationStatus(op.id, { 
+          status: 'failed', 
+          errorReason: `Max retries (${MAX_RETRIES}) exceeded: ${error.message}` 
+        });
+      } else {
+        await updateOperationStatus(op.id, { 
+          status: 'retrying', 
+          retryCount: nextRetryCount,
+          errorReason: error.message 
+        });
+      }
     }
 
     return { success: false, error };

@@ -5,7 +5,6 @@ import { addOperationToQueue, setEntityCache, getEntityCache } from '../lib/db';
 import { useSyncStore } from './useSyncStore';
 import { useSampleStore } from './useSampleStore';
 
-// Listen for sync completion to update local state
 const syncChannel = new BroadcastChannel('sync-status-updates');
 syncChannel.onmessage = (event) => {
   if (event.data.type === 'SYNC_DONE' && event.data.entityType === 'certificates') {
@@ -15,6 +14,11 @@ syncChannel.onmessage = (event) => {
       store.reconcileSyncedItem(tempId, newRecord);
     }
   }
+};
+
+// Exported for cleanup during HMR or app teardown to prevent memory leaks
+export const disposeCertificateSync = () => {
+  syncChannel.close();
 };
 
 export type CertificateType = 'بيئية' | 'استهلاكية';
@@ -93,6 +97,7 @@ interface CertificateState {
   updateCertificate: (id: number, certData: Partial<Certificate>) => Promise<boolean | 'queued'>;
   deleteCertificate: (id: number) => Promise<void>;
   reconcileSyncedItem: (tempId: number, realRecord: Certificate) => void;
+  clearError: () => void;
 }
 
 export const useCertificateStore = create<CertificateState>((set) => ({
@@ -101,6 +106,8 @@ export const useCertificateStore = create<CertificateState>((set) => ({
   totalCount: 0,
   isLoading: false,
   error: null,
+
+  clearError: () => set({ error: null }),
 
   fetchCertificates: async (page = 1, pageSize = 50) => {
     set({ isLoading: true, error: null });

@@ -26,6 +26,9 @@ namespace backend.Models.DTOs
         /// <summary>Access Token (JWT) — صلاحية 30 دقيقة</summary>
         public required string AccessToken { get; set; }
 
+        /// <summary>Refresh Token — صلاحية 7 أيام</summary>
+        public required string RefreshToken { get; set; }
+
         /// <summary>بيانات المستخدم</summary>
         public required UserDto User { get; set; }
     }

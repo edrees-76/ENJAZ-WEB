@@ -34,7 +34,7 @@ namespace backend.Services
 
             // Execute within a transaction with an exclusive lock on the Certificates table (or serializable level)
             // to ensure no other request gets the same sequence number.
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             
             try
             {

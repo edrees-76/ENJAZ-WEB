@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { addOperationToQueue, setEntityCache, getEntityCache } from '../lib/db';
 import { useSyncStore } from './useSyncStore';
 
-// Listen for sync completion to update local state (Incremental Reconciliation)
 const syncChannel = new BroadcastChannel('sync-status-updates');
 syncChannel.onmessage = (event) => {
   if (event.data.type === 'SYNC_DONE' && event.data.entityType === 'samples') {
@@ -15,6 +14,11 @@ syncChannel.onmessage = (event) => {
       store.reconcileSyncedItem(tempId, newRecord);
     }
   }
+};
+
+// Exported for cleanup during HMR or app teardown to prevent memory leaks
+export const disposeSampleSync = () => {
+  syncChannel.close();
 };
 
 

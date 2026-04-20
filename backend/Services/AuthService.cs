@@ -140,6 +140,7 @@ namespace backend.Services
             return (new LoginResponseDto
             {
                 AccessToken = accessToken,
+                RefreshToken = refreshToken,
                 User = UserDto.FromEntity(user)
             }, null);
         }
@@ -175,6 +176,7 @@ namespace backend.Services
             return (new LoginResponseDto
             {
                 AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken,
                 User = UserDto.FromEntity(storedToken.User)
             }, null);
         }

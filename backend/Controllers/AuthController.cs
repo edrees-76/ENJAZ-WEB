@@ -48,7 +48,7 @@ namespace backend.Controllers
             {
                 // Note: The refresh token is stored server-side during login
                 // We set the cookie separately using the last generated token
-                SetRefreshTokenCookie(response.AccessToken); // placeholder — actual refresh token flow handled below
+                SetRefreshTokenCookie(response.RefreshToken); 
             }
 
             return Ok(response);

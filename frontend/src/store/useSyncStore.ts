@@ -26,10 +26,28 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   checkServerStatus: async () => {
     try {
       // Use a lightweight endpoint to check connectivity
-      await apiClient.get('/alerts/unread-count', { timeout: 3000 });
+      await apiClient.get('/alerts/unread-count', { 
+        timeout: 5000,
+        // Don't trigger the global 401 interceptor for heartbeats if possible
+        // but since it's already there, we just handle the result
+      });
       set({ isServerAvailable: true });
-    } catch (error) {
-      set({ isServerAvailable: false });
+    } catch (error: any) {
+      // Logic: If the server responded with ANY status code (401, 500, etc.), 
+      // the server is definitely reachable/available.
+      // Only if there's NO response (network timeout, DNS failure, etc.) is it unavailable.
+      if (error.response || error.code === 'ECONNABORTED') {
+        // If we got a response, server is available.
+        // ECONNABORTED with a response is handled above. 
+        // If it's a pure timeout without response, error.response is undefined.
+        if (error.response) {
+          set({ isServerAvailable: true });
+        } else {
+          set({ isServerAvailable: false });
+        }
+      } else {
+        set({ isServerAvailable: false });
+      }
     }
   },
 
