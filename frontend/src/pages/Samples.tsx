@@ -638,10 +638,10 @@ export const Samples = () => {
                 <table className="w-full text-right">
                   <thead>
                     <tr className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-                      <th className="px-6 py-4 text-center w-20">م</th>
-                      <th className="px-6 py-4 text-center">رقم العينة</th>
-                      <th className="px-6 py-4 text-right">وصف العينة</th>
-                      <th className="px-6 py-4 text-center w-28">إجراءات</th>
+                      <th className="px-4 py-3 text-center w-20">م</th>
+                      <th className="px-4 py-3 text-center">رقم العينة</th>
+                      <th className="px-4 py-3 text-right">وصف العينة</th>
+                      <th className="px-4 py-3 text-center w-28">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-white/5">
@@ -654,10 +654,10 @@ export const Samples = () => {
                     ) : (
                       currentSamples.map((sample, index) => (
                         <tr key={index} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200 group border-b border-slate-200 dark:border-white/5 last:border-0 text-sm">
-                          <td className="px-6 py-4 text-center text-cyan-600 dark:text-cyan-500 font-bold font-mono">{index + 1}</td>
-                          <td className="px-6 py-4 text-center text-slate-800 dark:text-white font-mono">{sample.sampleNumber}</td>
-                          <td className="px-6 py-4 text-right text-slate-600 dark:text-gray-300">{sample.description}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3 text-center text-cyan-600 dark:text-cyan-500 font-bold font-mono">{index + 1}</td>
+                          <td className="px-4 py-3 text-center text-slate-800 dark:text-white font-mono">{sample.sampleNumber}</td>
+                          <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-300">{sample.description}</td>
+                          <td className="px-4 py-3">
                             <div className="flex justify-center items-center">
                               <button
                                 onClick={() => handleRemoveSample(index)}
@@ -812,15 +812,15 @@ export const Samples = () => {
                   <table className="w-full text-right border-collapse relative">
                     <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 border-b-2 border-sky-600/50 dark:border-white/10">
                       <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest text-right">
-                        <th className="p-5 font-extrabold whitespace-nowrap text-center">التسلسل</th>
-                        <th className="p-5 font-extrabold min-w-[200px]">الجهة المرسلة</th>
-                        <th className="p-5 font-extrabold min-w-[150px]">المورد</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap">الإيصال المالي</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap">رقم الإخطار</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap text-center">تاريخ الاستلام</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap text-center">النوع</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap text-center">الحالة</th>
-                        <th className="p-5 font-extrabold whitespace-nowrap text-center">عدد العينات</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap text-center">التسلسل</th>
+                        <th className="p-3 font-extrabold min-w-[200px]">الجهة المرسلة</th>
+                        <th className="p-3 font-extrabold min-w-[150px]">المورد</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap">الإيصال المالي</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap">رقم الإخطار</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap text-center">تاريخ الاستلام</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap text-center">النوع</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap text-center">الحالة</th>
+                        <th className="p-3 font-extrabold whitespace-nowrap text-center">عدد العينات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-white/5">
@@ -852,22 +852,22 @@ export const Samples = () => {
                               onClick={() => setSelectedReceptionIndex(globalIdx)}
                               className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${selectedReceptionIndex === globalIdx ? 'bg-cyan-100 dark:bg-cyan-500/20 shadow-sm border-y border-cyan-500/30' : ''}`}
                             >
-                              <td className="p-5 text-center">
-                                <span className={`text-sm font-mono p-2.5 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
+                              <td className="p-3 text-center">
+                                <span className={`text-sm font-mono p-2 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
                               </td>
-                              <td className="p-5 text-slate-900 dark:text-white text-xs font-bold whitespace-nowrap">{item.sender}</td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base">{item.supplier || '-'}</td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono text-center">
+                              <td className="p-3 text-slate-900 dark:text-white text-xs font-bold whitespace-nowrap">{item.sender}</td>
+                              <td className="p-3 text-slate-900 dark:text-white text-sm">{item.supplier || '-'}</td>
+                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono text-center">
                                 {item.financialReceiptNumber ? (
-                                  <span className="bg-slate-100 dark:bg-white/5 px-3 py-1 rounded-lg border border-slate-200 dark:border-white/10">
+                                  <span className="bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-slate-200 dark:border-white/10">
                                     {item.financialReceiptNumber}
                                   </span>
                                 ) : (
                                   <span className="text-slate-400 italic text-xs">---</span>
                                 )}
                               </td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
-                              <td className="p-5 text-slate-900 dark:text-white text-base font-mono whitespace-nowrap text-center">
+                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
+                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono whitespace-nowrap text-center">
                                 {(() => {
                                   try {
                                     const dateVal = item.createdAt || item.date;
@@ -886,16 +886,16 @@ export const Samples = () => {
                                   }
                                 })()}
                               </td>
-                              <td className="p-5 text-center">
-                                <span className={`px-4 py-2 rounded-full text-xs font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
+                              <td className="p-3 text-center">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                     : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'
                                   }`}>
                                   {item.certificateType}
                                 </span>
                               </td>
-                              <td className="p-5 text-center">
-                                <span className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap border ${
+                              <td className="p-3 text-center">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border ${
                                   item.status === 'تم إصدار شهادة'
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                     : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
@@ -903,8 +903,8 @@ export const Samples = () => {
                                   {item.status || 'لم يتم إصدار شهادة'}
                                 </span>
                               </td>
-                              <td className="p-5 text-center">
-                                <span className="font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-white/10 px-4 py-1.5 rounded-xl text-lg">
+                              <td className="p-3 text-center">
+                                <span className="font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-white/10 px-3 py-1 rounded-xl text-base">
                                   {item.samples?.length || 0}
                                 </span>
                               </td>

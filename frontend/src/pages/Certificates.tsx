@@ -267,14 +267,14 @@ const Certificates = () => {
             <table className="w-full text-right min-w-[900px] border-collapse">
               <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 backdrop-blur-sm border-b-2 border-sky-600/50 dark:border-white/10">
                 <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest">
-                  <th className="p-5 text-center w-16">ت</th>
-                  <th className="p-5 w-48 whitespace-nowrap">رقم الشهادة</th>
-                  <th className="p-5 min-w-[220px]">الجهة المرسلة</th>
-                  <th className="p-5 text-center w-32">عدد العينات</th>
-                  <th className="p-5 min-w-[200px]">المورد</th>
-                  <th className="p-5 w-40 text-center">رقم الإخطار</th>
-                  <th className="p-5 w-40 text-center">رقم الإيصال</th>
-                  <th className="p-5 text-center w-48 font-extrabold">تاريخ الإصدار</th>
+                  <th className="p-3 text-center w-16">ت</th>
+                  <th className="p-3 w-48 whitespace-nowrap">رقم الشهادة</th>
+                  <th className="p-3 min-w-[220px]">الجهة المرسلة</th>
+                  <th className="p-3 text-center w-32">عدد العينات</th>
+                  <th className="p-3 min-w-[200px]">المورد</th>
+                  <th className="p-3 w-40 text-center">رقم الإخطار</th>
+                  <th className="p-3 w-40 text-center">رقم الإيصال</th>
+                  <th className="p-3 text-center w-48 font-extrabold">تاريخ الإصدار</th>
                 </tr>
               </thead>
               <tbody>
@@ -287,36 +287,36 @@ const Certificates = () => {
                       onClick={() => setSelectedCertId(cert.id)}
                       className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${isSelected ? 'bg-emerald-100 dark:bg-emerald-500/20 shadow-sm border-y border-emerald-500/30' : 'border-b border-slate-100 dark:border-white/5 last:border-0'}`}
                     >
-                      <td className="p-5 text-center">
-                        <span className={`text-sm font-mono p-2.5 rounded-lg transition-all inline-block ${isSelected ? 'bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>
+                      <td className="p-3 text-center">
+                        <span className={`text-sm font-mono p-2 rounded-lg transition-all inline-block ${isSelected ? 'bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>
                           {globalIndex}
                         </span>
                       </td>
-                      <td className="p-5 whitespace-nowrap">
-                        <span className={`px-4 py-1.5 rounded-xl font-black text-sm tracking-widest border border-emerald-500/10 ${cert.certificateType === 'بيئية'
+                      <td className="p-3 whitespace-nowrap">
+                        <span className={`px-3 py-1 rounded-xl font-black text-xs tracking-widest border border-emerald-500/10 ${cert.certificateType === 'بيئية'
                             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                           }`}>
                           {cert.certificateNumber}
                         </span>
                       </td>
-                      <td className="p-5 text-slate-900 dark:text-white font-bold text-sm tracking-tight whitespace-nowrap">{cert.sender}</td>
-                      <td className="p-5 text-center whitespace-nowrap">
-                        <span className="bg-slate-200/50 dark:bg-white/10 text-slate-900 dark:text-white px-3 py-1 rounded-lg font-black text-sm">
+                      <td className="p-3 text-slate-900 dark:text-white font-bold text-sm tracking-tight whitespace-nowrap">{cert.sender}</td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <span className="bg-slate-200/50 dark:bg-white/10 text-slate-900 dark:text-white px-2 py-1 rounded-lg font-black text-xs">
                           {cert.sampleCount || cert.samples?.length || 0}
                         </span>
                       </td>
-                      <td className="p-5 text-slate-900 dark:text-white text-sm font-bold whitespace-nowrap">{cert.supplier || '-'}</td>
-                      <td className="p-5 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.notificationNumber || '-'}</td>
-                      <td className="p-5 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.financialReceiptNumber || '-'}</td>
-                      <td className="p-5 text-center whitespace-nowrap">
+                      <td className="p-3 text-slate-900 dark:text-white text-sm font-bold whitespace-nowrap">{cert.supplier || '-'}</td>
+                      <td className="p-3 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.notificationNumber || '-'}</td>
+                      <td className="p-3 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.financialReceiptNumber || '-'}</td>
+                      <td className="p-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-2">
                           {cert.issueDate ? (
                             <>
                               <span className="font-bold text-slate-900 dark:text-white text-sm">
                                 {new Date(cert.issueDate).toLocaleDateString('ar-LY', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                               </span>
-                              <span className="text-[11px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md" dir="ltr">
+                              <span className="text-[10px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md" dir="ltr">
                                 {new Date(cert.issueDate).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit', hour12: true })}
                               </span>
                             </>
