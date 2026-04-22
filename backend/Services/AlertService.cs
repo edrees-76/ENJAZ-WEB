@@ -99,6 +99,7 @@ namespace backend.Services
             // العينات المتأخرة التي لم يصدر لها شهادة
             var delayedReceptions = await _db.SampleReceptions
                 .Where(r => r.Date <= thresholdDate && r.Status == "لم يتم إصدار شهادة")
+                .OrderBy(r => r.Id)
                 .Take(MaxAlertsPerCycle) // Rate Limiting: لا تعالج أكثر من الحد
                 .ToListAsync();
 

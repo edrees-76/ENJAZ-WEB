@@ -39,6 +39,7 @@ namespace backend.Controllers
         public async Task<IActionResult> GetCertificates([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var query = _context.Certificates
+                .AsNoTracking()
                 .Include(c => c.Samples)
                 .Include(c => c.SampleReception);
 
@@ -56,6 +57,7 @@ namespace backend.Controllers
         public async Task<IActionResult> GetCertificateById(int id)
         {
             var certificate = await _context.Certificates
+                .AsNoTracking()
                 .Include(c => c.Samples)
                 .Include(c => c.SampleReception)
                 .FirstOrDefaultAsync(c => c.Id == id);

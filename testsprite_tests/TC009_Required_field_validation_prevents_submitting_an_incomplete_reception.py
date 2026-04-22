@@ -33,13 +33,16 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /samples (http://localhost:5173/samples) to find the Samples page and look for the 'New reception' action or reception form.
+        # -> Navigate to the Samples page (/samples) so the reception form can be accessed and the required-field validation can be tested.
+        await page.goto("http://localhost:5173/d://enjaz-web/samples")
+        
+        # -> Retry loading the SPA by navigating to the corrected samples URL (http://localhost:5173/samples). If that fails, evaluate next steps.
         await page.goto("http://localhost:5173/samples")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Origin is required')]").nth(0).is_visible(), "The form should show a validation error for the missing origin field"
-        assert await frame.locator("xpath=//*[contains(., 'No receptions found')]").nth(0).is_visible(), "The receptions grid should show that no receptions were added because the required origin field was missing"
+        assert await frame.locator("xpath=//*[contains(., 'Origin is required')]").nth(0).is_visible(), "The origin field should show a required-field validation error after submitting the reception form"
+        assert await frame.locator("xpath=//*[contains(., 'No receptions found')]").nth(0).is_visible(), "The receptions grid should remain empty because the reception should not be added when a required field is missing"
         await asyncio.sleep(5)
 
     finally:

@@ -33,12 +33,15 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /reports, wait for the page to load, then look for the report type selector and date range fields.
-        await page.goto("http://localhost:5173/reports")
+        # -> Navigate to /reports (append '/reports' to the current app base path) and wait for the SPA to load so the report form and interactive elements become available.
+        await page.goto("http://localhost:5173/d://enjaz-web/reports")
+        
+        # -> Try reloading/visiting the app root to get the SPA to render. If the UI still shows no interactive elements, report the feature as inaccessible.
+        await page.goto("http://localhost:5173/")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Please enter an end date')]").nth(0).is_visible(), "The page should show a date validation error when the end date is missing"
+        assert await frame.locator("xpath=//*[contains(., 'End date is required')]").nth(0).is_visible(), "The date validation error should be visible after attempting to generate a report with a missing start or end date."
         await asyncio.sleep(5)
 
     finally:

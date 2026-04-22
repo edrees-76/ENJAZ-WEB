@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "post apiv1authlogin with valid and invalid credentials",
+    "description": "Verify that POST /api/v1/auth/login returns 200 with accessToken and refreshToken (camelCase JSON keys) for valid credentials (username: admin, password: Edrees1222004), and returns 401 Unauthorized for invalid credentials. The response JSON uses camelCase: {\"accessToken\": \"...\", \"refreshToken\": \"...\"}."
+  },
+  {
+    "id": "TC002",
+    "title": "post apiv1authrefresh with valid and invalid tokens",
+    "description": "Verify that POST /api/v1/auth/refresh returns 200 with new accessToken and refreshToken (camelCase JSON keys). Login first using admin/Edrees1222004 to get tokens. The refresh token MUST be sent in the request cookies as 'refreshToken=<value>'. Returns 401 Unauthorized for invalid or revoked refresh tokens."
+  },
+  {
+    "id": "TC003",
+    "title": "get apiv1users with and without authorization",
+    "description": "Verify that GET /api/v1/users returns 200 with list of users when called with valid access token (login with admin/Edrees1222004, token key is accessToken in camelCase), and returns 401 Unauthorized when called without Authorization header."
+  },
+  {
+    "id": "TC004",
+    "title": "post apiv1users with valid and invalid data",
+    "description": "Verify that POST /api/v1/users creates a new user and returns 201 with UserDto. When called with valid data and admin access token (login with admin/Edrees1222004). You MUST use a strong password (e.g., 'StrongPass123!'). Use role=1 for regular user in the request. IMPORTANT: The returned 'role' field in the JSON response will be a STRING (e.g. \"User\"), not an integer, so verify it as a string. Clean up by deleting the created user after test using DELETE /api/v1/users/{id}."
+  },
+  {
+    "id": "TC005",
+    "title": "post apiv1samples with valid and invalid data",
+    "description": "Verify that POST /api/v1/samples creates a new sample reception and returns 201 when called with valid data and access token (login with admin/Edrees1222004, token key is accessToken). Valid samples array must contain objects with required fields: sampleNumber, description, and root (e.g. {\"sampleNumber\": \"S001\", \"description\": \"Test sample\", \"root\": \"soil\"}). Returns 400 Validation error when analysisRequestNumber is missing."
+  },
+  {
+    "id": "TC006",
+    "title": "get apiv1samples with valid and invalid tokens",
+    "description": "Verify that GET /api/v1/samples returns 200 when called with valid access token. Note that the response is an object containing 'items' and 'totalCount' due to pagination, NOT a direct list. Verify the 'items' array. Returns 401 Unauthorized when called with expired or missing token."
+  },
+  {
+    "id": "TC007",
+    "title": "post apiv1certificates with valid and invalid sample reception id",
+    "description": "Verify that POST /api/v1/certificates issues a new certificate and returns 201 with Certificate. THE POST PAYLOAD FOR CERTIFICATE MUST BE EXACTLY THIS STRUCTURE: {\"sampleReceptionId\": sample_reception_id, \"certificateType\": \"Standard\", \"sender\": \"Test Sender\", \"issueDate\": \"2026-04-20T00:00:00Z\", \"analysisType\": \"Test Analysis\", \"samples\": [{\"sampleNumber\": \"S001\", \"description\": \"Test\", \"root\": \"soil\"}]}. Returns 400 or 404 when sampleReceptionId is invalid."
+  },
+  {
+    "id": "TC008",
+    "title": "post apiv1certificatesidpdf with existing and non existing id",
+    "description": "Verify that POST /api/v1/certificates/{id}/pdf returns 200 for existing certificate id and valid access token (login with admin/Edrees1222004), and returns 404 Not Found for non-existent certificate id. First create a valid certificate (THE POST PAYLOAD FOR CERTIFICATE MUST BE EXACTLY THIS STRUCTURE: {\"sampleReceptionId\": sample_reception_id, \"certificateType\": \"Standard\", \"sender\": \"Test Sender\", \"issueDate\": \"2026-04-20T00:00:00Z\", \"analysisType\": \"Test Analysis\", \"samples\": [{\"sampleNumber\": \"S001\", \"description\": \"Test\", \"root\": \"soil\"}]}). Then call the POST PDF endpoint."
+  },
+  {
+    "id": "TC009",
+    "title": "get apiv1settingssystem with and without authorization",
+    "description": "Verify that GET /api/v1/settings/system returns 200 with SystemSettings when called with valid admin access token (login with admin/Edrees1222004, token key is accessToken in camelCase), and returns 401 Unauthorized when called without Authorization header."
+  },
+  {
+    "id": "TC010",
+    "title": "post apiv1settingsbackupexport with authorized and unauthorized access",
+    "description": "Verify that POST /api/v1/settings/backup/export returns 200 with backup file content when called with admin access token (login with admin/Edrees1222004) and JSON payload containing the admin password: {\"password\": \"Edrees1222004\"}. Returns 403 Forbidden when called with non-admin user token. To test unauthorized access, create a limited user with role=1 and a strong password (e.g. 'StrongPass123!')."
+  }
+]

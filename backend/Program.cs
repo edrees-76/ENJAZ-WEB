@@ -11,26 +11,32 @@ using Serilog.Events;
 using Hangfire;
 using Hangfire.PostgreSql;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using OpenTelemetry.Resources;
 using Asp.Versioning;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Polly;
+using Polly.Timeout;
+using System.Net;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Http.Resilience;
+
+using backend.Logging;
 
 // ═══════════════════════════════════════════════
 // Core-A M2: Serilog Bootstrap (before anything else)
 // ═══════════════════════════════════════════════
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
     .MinimumLevel.Override("Hangfire", LogEventLevel.Warning)
     .Enrich.FromLogContext()
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .WriteTo.File(
-        path: "logs/enjaz-.log",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .CreateLogger();
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 try
 {
@@ -40,8 +46,35 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    // HttpContext Accessor needed for CorrelationId
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddSingleton<TraceEnricher>();
+
     // Use Serilog as the logging provider
-    builder.Host.UseSerilog();
+    builder.Host.UseSerilog((context, services, config) =>
+    {
+        var enricher = services.GetRequiredService<TraceEnricher>();
+
+        config
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+            .Enrich.FromLogContext()
+            .Enrich.With(enricher)
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId()
+            .Enrich.WithProcessId()
+            .WriteTo.Console(outputTemplate:
+                "[{Timestamp:HH:mm:ss} {Level:u3}] TraceId={TraceId} SpanId={SpanId} CorrelationId={CorrelationId} {Message:lj}{NewLine}{Exception}")
+            .WriteTo.File(
+                path: "logs/enjaz-log-.txt",
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7,
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] TraceId={TraceId} CorrelationId={CorrelationId} {Message:lj}{NewLine}{Exception}"
+            )
+            .WriteTo.Seq("http://localhost:5341"); // Send logs to Seq
+    });
 
     // ═══════════════════════════════════════════════
     // Database Configuration — PostgreSQL (unified)
@@ -50,7 +83,14 @@ try
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
     builder.Services.AddDbContext<EnjazDbContext>(options =>
-        options.UseNpgsql(connectionString));
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null);
+            npgsqlOptions.CommandTimeout((int)TimeSpan.FromSeconds(30).TotalSeconds);
+        }));
 
     // ═══════════════════════════════════════════════
     // Core-A M2: Redis Distributed Cache
@@ -117,6 +157,135 @@ try
 
     // Stability M6: Feature Flags
     builder.Services.AddScoped<IFeatureFlagService, FeatureFlagService>();
+
+    // ═══════════════════════════════════════════════
+    // Phase 2: Polly v8 Resilient HttpClient
+    // Retry (3x Exponential) + Circuit Breaker + Timeout
+    // ═══════════════════════════════════════════════
+    builder.Services.AddHttpClient("ResilientClient")
+        .AddResilienceHandler("default", (pipeline, context) =>
+        {
+            var loggerFactory = context.ServiceProvider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("Polly.ResilientClient");
+
+            // 🔹 Retry: 3 attempts with exponential backoff (2s → 4s → 8s)
+            pipeline.AddRetry(new Polly.Retry.RetryStrategyOptions<HttpResponseMessage>
+            {
+                MaxRetryAttempts = 3,
+                Delay = TimeSpan.FromSeconds(2),
+                BackoffType = DelayBackoffType.Exponential,
+                ShouldHandle = args => ValueTask.FromResult(
+                    args.Outcome.Result?.StatusCode == HttpStatusCode.RequestTimeout ||
+                    (int?)args.Outcome.Result?.StatusCode >= 500 ||
+                    args.Outcome.Exception != null),
+                OnRetry = args =>
+                {
+                    logger.LogWarning(
+                        "Polly Retry #{Attempt} after {Delay}ms | Error: {Error}",
+                        args.AttemptNumber,
+                        args.RetryDelay.TotalMilliseconds,
+                        args.Outcome.Exception?.Message ?? args.Outcome.Result?.StatusCode.ToString());
+                    return ValueTask.CompletedTask;
+                }
+            });
+
+            // 🔹 Circuit Breaker: Open after 50% failures in 10s window
+            pipeline.AddCircuitBreaker(new Polly.CircuitBreaker.CircuitBreakerStrategyOptions<HttpResponseMessage>
+            {
+                FailureRatio = 0.5,
+                SamplingDuration = TimeSpan.FromSeconds(10),
+                MinimumThroughput = 10,
+                BreakDuration = TimeSpan.FromSeconds(30),
+                ShouldHandle = args => ValueTask.FromResult(
+                    args.Outcome.Result?.StatusCode == HttpStatusCode.RequestTimeout ||
+                    (int?)args.Outcome.Result?.StatusCode >= 500 ||
+                    args.Outcome.Exception != null),
+                OnOpened = args =>
+                {
+                    logger.LogError("⚡ Circuit OPENED — External service unavailable for {Duration}s", args.BreakDuration.TotalSeconds);
+                    return ValueTask.CompletedTask;
+                },
+                OnClosed = _ =>
+                {
+                    logger.LogInformation("✅ Circuit CLOSED — External service recovered");
+                    return ValueTask.CompletedTask;
+                }
+            });
+
+            // 🔹 Timeout: Cancel any request exceeding 5 seconds
+            pipeline.AddTimeout(new TimeoutStrategyOptions
+            {
+                Timeout = TimeSpan.FromSeconds(5),
+                OnTimeout = args =>
+                {
+                    logger.LogWarning("⏱️ Request timed out after {Timeout}s", args.Timeout.TotalSeconds);
+                    return ValueTask.CompletedTask;
+                }
+            });
+        });
+
+    // ═══════════════════════════════════════════════
+    // Phase 2: .NET 8 Built-in Rate Limiting
+    // SlidingWindow (API) + TokenBucket (Auth)
+    // ═══════════════════════════════════════════════
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        // General API: 100 requests per 60s sliding window, 4 segments
+        options.AddSlidingWindowLimiter("api", opt =>
+        {
+            opt.PermitLimit = 100;
+            opt.Window = TimeSpan.FromSeconds(60);
+            opt.SegmentsPerWindow = 4;
+            opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit = 5;
+        });
+
+        // Auth endpoints: Token bucket — 10 tokens, refills 2/sec
+        options.AddTokenBucketLimiter("auth", opt =>
+        {
+            opt.TokenLimit = 10;
+            opt.ReplenishmentPeriod = TimeSpan.FromSeconds(1);
+            opt.TokensPerPeriod = 2;
+            opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+            opt.QueueLimit = 2;
+        });
+
+        // Global fallback: per-IP partition
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return RateLimitPartition.GetSlidingWindowLimiter(clientIp, _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 200,
+                Window = TimeSpan.FromSeconds(60),
+                SegmentsPerWindow = 4,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10
+            });
+        });
+
+        options.OnRejected = async (context, cancellationToken) =>
+        {
+            context.HttpContext.Response.ContentType = "application/problem+json; charset=utf-8";
+            var problemDetails = new Microsoft.AspNetCore.Mvc.ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Type = "https://tools.ietf.org/html/rfc6585#section-4",
+                Title = "تم تجاوز الحد الأقصى للطلبات",
+                Detail = "حاول مرة أخرى بعد فترة قصيرة.",
+                Instance = context.HttpContext.Request.Path
+            };
+            problemDetails.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
+
+            Log.Warning("Rate limit exceeded | IP={IP} | Path={Path}",
+                context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+                context.HttpContext.Request.Path);
+
+            await context.HttpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+        };
+    });
 
     // ═══════════════════════════════════════════════
     // CORS Configuration
@@ -209,22 +378,34 @@ try
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
 
+    builder.Services.AddFluentValidationAutoValidation();
+    builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddSignalR();
 
     // ═══════════════════════════════════════════════
-    // Health Checks — DB + Redis
+    // Health Checks — DB + Redis (Liveness & Readiness)
     // ═══════════════════════════════════════════════
     builder.Services.AddHealthChecks()
-        .AddNpgSql(connectionString, name: "database", tags: ["ready"])
-        .AddRedis(redisConnection, name: "redis", tags: ["ready"]);
+        .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: new[] { "live" })
+        .AddNpgSql(connectionString, name: "database", tags: new[] { "ready" })
+        .AddRedis(redisConnection, name: "redis", tags: new[] { "ready" });
 
     // ═══════════════════════════════════════════════
-    // Stability M5: OpenTelemetry + Prometheus Metrics
+    // Stability M5: OpenTelemetry + Prometheus Metrics + Tracing
     // ═══════════════════════════════════════════════
     builder.Services.AddOpenTelemetry()
         .ConfigureResource(r => r.AddService("Enjaz.Api", serviceVersion: "1.0.0"))
+        .WithTracing(tracing =>
+        {
+            tracing
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddEntityFrameworkCoreInstrumentation(opts => opts.SetDbStatementForText = true)
+                .AddConsoleExporter(); // Use Jaeger/Zipkin in production
+        })
         .WithMetrics(metrics =>
         {
             metrics
@@ -258,7 +439,10 @@ try
     // HTTP Pipeline
     // ═══════════════════════════════════════════════
 
-    // Core-A M2: Global exception handler (first in pipeline)
+    // Phase 3: Add CorrelationId Middleware first to tag everything
+    app.UseMiddleware<CorrelationIdMiddleware>();
+
+    // Core-A M2: Global exception handler
     app.UseGlobalExceptionHandler();
 
     // Core-B M3: Security headers (before anything else)
@@ -285,8 +469,8 @@ try
 
     app.UseCors("AllowAll");
 
-    // Core-B M3: Rate Limiting (before auth to block abusers early)
-    app.UseApiRateLimiting();
+    // Phase 2: .NET 8 Built-in Rate Limiting (before auth to block abusers early)
+    app.UseRateLimiter();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -299,7 +483,17 @@ try
 
     app.MapControllers();
     app.MapHub<backend.Hubs.AlertHub>("/hubs/alerts/v1");
-    app.MapHealthChecks("/health");
+    
+    // Phase 3: Split HealthChecks
+    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = r => r.Tags.Contains("live")
+    });
+    
+    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = r => r.Tags.Contains("ready")
+    });
 
     // Stability M5: Prometheus metrics endpoint
     app.MapPrometheusScrapingEndpoint("/metrics");

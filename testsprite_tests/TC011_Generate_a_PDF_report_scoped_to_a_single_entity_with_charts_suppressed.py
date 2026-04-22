@@ -33,12 +33,12 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /reports page (explicit step from the test plan).
+        # -> Navigate directly to /reports and wait for the page to render; then check for interactive elements and proceed if available.
         await page.goto("http://localhost:5173/reports")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Charts suppressed for single-entity scope')]").nth(0).is_visible(), "The generated PDF preview should indicate that redundant charts are suppressed when the report is scoped to a single entity."
+        assert await frame.locator("xpath=//*[contains(., 'Charts suppressed for single-entity scope')]").nth(0).is_visible(), "The PDF preview should indicate charts are suppressed when the report is scoped to a single entity."
         await asyncio.sleep(5)
 
     finally:

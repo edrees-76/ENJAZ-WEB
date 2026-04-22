@@ -33,13 +33,16 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /samples to find the Samples page and start creating receptions.
+        # -> Navigate to the Samples page so we can start creating receptions (go to /samples).
         await page.goto("http://localhost:5173/samples")
+        
+        # -> Reload the app root to attempt to get the SPA to render so we can interact with the Samples page.
+        await page.goto("http://localhost:5173/")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Receptions')]"").nth(0).is_visible(), "At least two newly created receptions should be visible in the receptions grid after submission"
-        assert await frame.locator("xpath=//*[contains(., 'Start a new reception')]"").nth(0).is_visible(), "The receptions grid should remain usable after consecutive creations"
+        assert await frame.locator("xpath=//*[contains(., 'Receptions (2)')]").nth(0).is_visible(), "The receptions grid should list 2 receptions after creating two receptions back-to-back"
+        assert await frame.locator("xpath=//*[contains(., 'Start a new reception entry')]").nth(0).is_visible(), "The receptions grid should remain usable after consecutive creations, allowing starting a new reception entry"
         await asyncio.sleep(5)
 
     finally:

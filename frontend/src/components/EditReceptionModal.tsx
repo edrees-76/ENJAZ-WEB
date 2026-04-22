@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Beaker, FileText, Plus, Trash2 } from 'lucide-react';
+import { X, Save, AlertCircle, Beaker, FileText, Plus, Trash2, Lock } from 'lucide-react';
 import { useNavigationLock } from '../hooks/useNavigationLock';
 
 import type { Sample, SampleReception } from '../store/useSampleStore';
@@ -345,14 +345,13 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
               <div className="space-y-2">
                 <label className="text-slate-700 dark:text-gray-400 text-xs font-bold mr-1 flex items-center gap-2">
                   رقم الإيصال المالي
-                  <Lock className="w-3 h-3 opacity-50" />
                 </label>
                 <input 
                   type="text"
-                  readOnly
                   value={formData.financialReceiptNumber || ''}
-                  className="w-full bg-slate-200/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-500 dark:text-gray-400 cursor-not-allowed outline-none transition-all font-mono"
-                  placeholder="يتم التعبئة تلقائياً"
+                  onChange={e => setFormData({...formData, financialReceiptNumber: e.target.value})}
+                  className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500/30 outline-none transition-all"
+                  placeholder="أدخل رقم الإيصال المالي"
                 />
               </div>
             </div>

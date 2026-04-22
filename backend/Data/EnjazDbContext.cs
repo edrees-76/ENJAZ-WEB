@@ -167,6 +167,10 @@ namespace backend.Data
                 .HasForeignKey(lc => lc.CertificateId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Synchronize with ReferralLetter query filter
+            modelBuilder.Entity<Models.ReferralLetterCertificate>()
+                .HasQueryFilter(lc => !lc.ReferralLetter.IsDeleted);
+
             // Performance Indexes
             modelBuilder.Entity<Models.ReferralLetter>()
                 .HasIndex(r => r.SenderName);

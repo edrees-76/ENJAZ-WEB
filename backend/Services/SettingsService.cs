@@ -401,9 +401,11 @@ namespace backend.Services
                 {
                     try
                     {
+#pragma warning disable EF1002
                         await _db.Database.ExecuteSqlRawAsync($@"
                             SELECT setval(pg_get_serial_sequence('""{table}""', 'Id'), COALESCE((SELECT MAX(""Id"") FROM ""{table}"") + 1, 1), false);
                         ");
+#pragma warning restore EF1002
                     }
                     catch (Exception ex)
                     {

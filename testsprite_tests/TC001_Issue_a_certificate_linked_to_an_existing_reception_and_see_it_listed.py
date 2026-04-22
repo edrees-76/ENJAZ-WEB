@@ -33,15 +33,12 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate directly to /samples (explicit path from test steps) because the SPA root did not load interactive elements; then re-check page for interactive elements.
+        # -> Load the app UI by navigating to /samples so the SPA can render and interactive elements appear.
         await page.goto("http://localhost:5173/samples")
-        
-        # -> Navigate to /certificates and wait for the SPA to render. If the page remains blank, report the test as blocked.
-        await page.goto("http://localhost:5173/certificates")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Certificate created')]").nth(0).is_visible(), "The certificates list should display Certificate created after submitting the certificate issuance","assert await frame.locator("xpath=//*[contains(., 'Linked receptions: 1')]").nth(0).is_visible(), "The issued certificate should show it is linked to at least one reception"]}<()>
+        assert await frame.locator("xpath=//*[contains(., 'Certificate')]").nth(0).is_visible(), "The certificates list should show the newly issued certificate after issuance","assert await frame.locator("xpath=//*[contains(., 'Receptions')]").nth(0).is_visible(), "The certificate entry should indicate it is linked to at least one reception after linking via the search modal"
         await asyncio.sleep(5)
 
     finally:

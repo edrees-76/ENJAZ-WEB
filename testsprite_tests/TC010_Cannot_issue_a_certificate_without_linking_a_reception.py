@@ -33,19 +33,25 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /certificates to load the Certificates page and reveal interactive UI elements so the issuance workflow can be tested.
+        # -> Navigate to /certificates to reach the Certificates page and load the UI
         await page.goto("http://localhost:5173/certificates")
         
-        # -> Reload the app root to trigger the SPA to render: navigate to http://localhost:5173/ and wait for the page to finish loading so interactive elements appear.
+        # -> Wait for the page to finish rendering. If it remains blank, try loading the app root (/) to recover the SPA.
         await page.goto("http://localhost:5173/")
         
-        # -> Try to load the Certificates page UI again by navigating to /certificates and waiting for the app to render so interactive elements appear.
-        await page.goto("http://localhost:5173/certificates")
+        # -> Try recovering the SPA by reloading the site using the loopback IP and /certificates path (attempt remaining). If the page still fails to render, report the feature as inaccessible and mark the test done.
+        await page.goto("http://127.0.0.1:5173/certificates")
+        
+        # -> Click the Reload button (interactive element index 74) to try to recover the SPA and load the Certificates UI.
+        frame = context.pages[-1]
+        # Click element
+        elem = frame.locator('xpath=/html/body/div/div/div[2]/div/button').nth(0)
+        await asyncio.sleep(3); await elem.click()
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Please link a reception before issuing')]").nth(0).is_visible(), "The page should show a validation error indicating a reception must be linked before issuing.",
-        assert await frame.locator("xpath=//*[contains(., 'No certificates found')]").nth(0).is_visible(), "The certificates list should remain empty because issuance without a linked reception must be prevented."]}
+        assert await frame.locator("xpath=//*[contains(., 'Reception must be linked before issuing')]").nth(0).is_visible(), "A validation error indicating a reception must be linked should be visible when attempting to issue without selecting any reception.",
+        assert not await frame.locator("xpath=//*[contains(., 'Certificate issued successfully')]").nth(0).is_visible(), "The page should not show a success message because issuance should be blocked when no reception is linked."]}
         await asyncio.sleep(5)
 
     finally:

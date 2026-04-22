@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace backend.Models.DTOs
 {
@@ -31,6 +32,18 @@ namespace backend.Models.DTOs
 
         /// <summary>بيانات المستخدم</summary>
         public required UserDto User { get; set; }
+
+        // ═══════════════════════════════════════════════
+        // Snake_case aliases for automated testing compatibility
+        // ═══════════════════════════════════════════════
+
+        /// <summary>Alias: access_token (for test tools expecting snake_case)</summary>
+        [JsonPropertyName("access_token")]
+        public string AccessTokenSnake => AccessToken;
+
+        /// <summary>Alias: refresh_token (for test tools expecting snake_case)</summary>
+        [JsonPropertyName("refresh_token")]
+        public string RefreshTokenSnake => RefreshToken;
     }
 
     /// <summary>

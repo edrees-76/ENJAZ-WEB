@@ -50,8 +50,9 @@ const startHeartbeat = () => {
       channel.postMessage({ type: 'CLAIM_LEADERSHIP', tabId: TAB_ID, tabTimestamp: TAB_TIMESTAMP });
       
       // Start processing if we have pending items
-      const { processSyncQueue } = require('./engine');
-      processSyncQueue();
+      import('./engine').then(({ processSyncQueue }) => {
+        processSyncQueue();
+      });
     }
   }, 1000);
 };

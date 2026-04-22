@@ -33,17 +33,14 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to the application's root URL (http://localhost:5173/) to load the dashboard and reveal interactive elements so Quick Search can be tested.
+        # -> Navigate to the application root at http://localhost:5173/ to attempt loading the SPA with a correct base path, then wait for the UI to render and re-evaluate for the Quick Search action.
         await page.goto("http://localhost:5173/")
-        
-        # -> Navigate to http://localhost:5173/dashboard to try to load the dashboard UI and reveal interactive elements (Quick Search).
-        await page.goto("http://localhost:5173/dashboard")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
         current_url = await frame.evaluate("() => window.location.href")
-        assert '/samples' in current_url, "The page should have navigated to the samples view after using Quick Search"
-        assert await frame.locator("xpath=//*[contains(., 'Search samples')] ").nth(0).is_visible(), "The samples search input should be focused for immediate lookup after using Quick Search"
+        assert '/samples' in current_url, "The page should have navigated to the samples view after clicking Quick Search on the dashboard"
+        assert await frame.locator("xpath=//*[contains(., 'Search samples')]").nth(0).is_visible(), "The samples search input should be focused for immediate lookup"
         await asyncio.sleep(5)
 
     finally:

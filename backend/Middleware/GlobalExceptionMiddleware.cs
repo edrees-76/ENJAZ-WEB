@@ -1,11 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Middleware
 {
     /// <summary>
     /// Core-A M2: Unified error response middleware.
-    /// Catches all unhandled exceptions and returns structured JSON.
+    /// Catches all unhandled exceptions and returns structured RFC 7807 ProblemDetails.
     /// </summary>
     public class GlobalExceptionMiddleware
     {
@@ -32,40 +33,45 @@ namespace backend.Middleware
 
         private async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            var (statusCode, userMessage) = exception switch
+            var (statusCode, userMessage, type) = exception switch
             {
-                ArgumentException => (HttpStatusCode.BadRequest, "بيانات الطلب غير صالحة"),
-                UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "غير مصرح لك بهذا الإجراء"),
-                KeyNotFoundException => (HttpStatusCode.NotFound, "العنصر المطلوب غير موجود"),
-                InvalidOperationException => (HttpStatusCode.Conflict, "لا يمكن تنفيذ هذا الإجراء حالياً"),
-                TimeoutException => (HttpStatusCode.GatewayTimeout, "انتهت مهلة العملية"),
-                _ => (HttpStatusCode.InternalServerError, "حدث خطأ داخلي في الخادم")
+                ArgumentException => (HttpStatusCode.BadRequest, "بيانات الطلب غير صالحة", "https://tools.ietf.org/html/rfc7231#section-6.5.1"),
+                UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "غير مصرح لك بهذا الإجراء", "https://tools.ietf.org/html/rfc7235#section-3.1"),
+                KeyNotFoundException => (HttpStatusCode.NotFound, "العنصر المطلوب غير موجود", "https://tools.ietf.org/html/rfc7231#section-6.5.4"),
+                InvalidOperationException => (HttpStatusCode.Conflict, "لا يمكن تنفيذ هذا الإجراء حالياً", "https://tools.ietf.org/html/rfc7231#section-6.5.8"),
+                TimeoutException => (HttpStatusCode.GatewayTimeout, "انتهت مهلة العملية", "https://tools.ietf.org/html/rfc7231#section-6.6.5"),
+                _ => (HttpStatusCode.InternalServerError, "حدث خطأ داخلي في الخادم", "https://tools.ietf.org/html/rfc7231#section-6.6.1")
             };
 
-            // Log with full context
+            var correlationId = context.TraceIdentifier;
+
+            // Advanced Logging (Exception details + CorrelationId)
             _logger.LogError(exception,
-                "Unhandled exception | Path={Path} | Method={Method} | Status={StatusCode} | User={User}",
+                "Unhandled exception | Path={Path} | Method={Method} | Status={StatusCode} | User={User} | CorrelationId={CorrelationId} | Error={ErrorMessage}",
                 context.Request.Path,
                 context.Request.Method,
                 (int)statusCode,
-                context.User?.Identity?.Name ?? "Anonymous");
+                context.User?.Identity?.Name ?? "Anonymous",
+                correlationId,
+                exception.Message);
 
             context.Response.StatusCode = (int)statusCode;
-            context.Response.ContentType = "application/json; charset=utf-8";
+            context.Response.ContentType = "application/problem+json; charset=utf-8"; // RFC 7807 standard content type
 
-            var response = new
+            var problemDetails = new ProblemDetails
             {
-                success = false,
-                error = new
-                {
-                    message = userMessage,
-                    code = (int)statusCode,
-                    traceId = context.TraceIdentifier,
-                    timestamp = DateTime.UtcNow
-                }
+                Status = (int)statusCode,
+                Type = type,
+                Title = userMessage,
+                Detail = "حدث خطأ أثناء معالجة الطلب، يرجى تزويد الدعم الفني برقم التتبع.",
+                Instance = context.Request.Path
             };
 
-            var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            // Extensions for tracking
+            problemDetails.Extensions["correlationId"] = correlationId;
+            problemDetails.Extensions["timestamp"] = DateTime.UtcNow;
+
+            var json = JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 WriteIndented = false

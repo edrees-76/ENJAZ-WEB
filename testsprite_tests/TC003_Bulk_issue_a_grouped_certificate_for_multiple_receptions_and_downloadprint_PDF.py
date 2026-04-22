@@ -33,16 +33,16 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to /samples and wait for the app to load. Then locate the 'New Reception' or equivalent action to create the first reception.
+        # -> Navigate to /samples (http://localhost:5173/samples) to load the Samples page and reveal UI elements so I can create receptions.
         await page.goto("http://localhost:5173/samples")
         
-        # -> Attempt to load the app root (http://localhost:5173/) and wait for the SPA to render so the Samples page UI becomes interactive.
+        # -> Try to allow the SPA to finish loading, then if still blank attempt a navigation to the app root to trigger the application load.
         await page.goto("http://localhost:5173/")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Linked Receptions: 2')]").nth(0).is_visible(), "The certificate should indicate it is linked to multiple receptions after grouping them"
-        assert await frame.locator("xpath=//*[contains(., 'Download PDF')]").nth(0).is_visible(), "A printable or downloadable PDF view should be displayed for the issued certificate"
+        assert await frame.locator("xpath=//*[contains(., 'Linked Receptions (2)')]").nth(0).is_visible(), "The certificate should indicate it is linked to multiple receptions after grouping.",
+        assert await frame.locator("xpath=//*[contains(., 'Download PDF')]").nth(0).is_visible(), "The issued certificate should display a Download PDF option to allow printing or downloading."]}
         await asyncio.sleep(5)
 
     finally:

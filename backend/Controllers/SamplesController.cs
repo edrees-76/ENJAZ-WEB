@@ -39,6 +39,7 @@ namespace backend.Controllers
             [FromServices] IConfiguration config = null!)
         {
             var query = _context.SampleReceptions
+                .AsNoTracking()
                 .Include(r => r.Samples)
                 .OrderByDescending(r => r.CreatedAt);
 
@@ -71,6 +72,7 @@ namespace backend.Controllers
         public async Task<ActionResult<SampleReception>> GetSampleReception(int id)
         {
             var sampleReception = await _context.SampleReceptions
+                .AsNoTracking()
                 .Include(r => r.Samples)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
@@ -219,7 +221,9 @@ namespace backend.Controllers
 
                             // Update properties
                             existing.Description = incoming.Description;
+#pragma warning disable CS8601
                             existing.SampleNumber = incoming.SampleNumber;
+#pragma warning restore CS8601
                             existing.Root = incoming.Root;
                         }
                     }

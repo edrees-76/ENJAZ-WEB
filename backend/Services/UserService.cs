@@ -18,6 +18,7 @@ namespace backend.Services
         Task<(bool Success, string? Error)> ToggleUserStatusAsync(int id, int requesterId);
         Task<bool> IsUsernameUniqueAsync(string username, int? excludeId = null);
         Task<UserStatsDto> GetStatsAsync();
+        Task<(bool Success, string? Error)> DeleteUserAsync(int id, int requesterId);
         Task EnsureDefaultAdminAsync();
     }
 
@@ -219,9 +220,11 @@ namespace backend.Services
                 {
                     try
                     {
+#pragma warning disable EF1002
                         await _db.Database.ExecuteSqlRawAsync($@"
                             SELECT setval(pg_get_serial_sequence('""{table}""', 'Id'), COALESCE((SELECT MAX(""Id"") FROM ""{table}"") + 1, 1), false);
                         ");
+#pragma warning restore EF1002
                     }
                     catch (Exception ex)
                     {
@@ -279,6 +282,20 @@ namespace backend.Services
             await _db.SaveChangesAsync();
 
             _logger.LogInformation("Default admin user created successfully.");
+        }
+
+        /// <summary>حذف مستخدم (لا يمكن حذف المدير أو الحساب الذاتي)</summary>
+        public async Task<(bool Success, string? Error)> DeleteUserAsync(int id, int requesterId)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return (false, "المستخدم غير موجود");
+            if (user.Username == "admin") return (false, "لا يمكن حذف حساب المدير");
+            if (user.Id == requesterId) return (false, "لا يمكن حذف حسابك الخاص");
+
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+            _logger.LogInformation("User {Username} (ID: {Id}) deleted by user {RequesterId}", user.Username, user.Id, requesterId);
+            return (true, null);
         }
     }
 }

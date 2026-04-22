@@ -93,6 +93,23 @@ namespace backend.Controllers
         }
 
         // ═══════════════════════════════════════
+        // Delete User
+        // ═══════════════════════════════════════
+
+        /// <summary>حذف مستخدم</summary>
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var (success, error) = await _userService.DeleteUserAsync(id, GetUserId());
+            if (!success)
+            {
+                if (error == "المستخدم غير موجود") return NotFound(new { message = error });
+                return BadRequest(new { message = error });
+            }
+            return NoContent();
+        }
+
+        // ═══════════════════════════════════════
         // Helpers
         // ═══════════════════════════════════════
 

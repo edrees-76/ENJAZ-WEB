@@ -5,7 +5,7 @@
 
 ## 1️⃣ Document Metadata
 - **Project Name:** enjaz-web
-- **Date:** 2026-04-10
+- **Date:** 2026-04-22
 - **Prepared by:** TestSprite AI Team
 
 ---
@@ -16,13 +16,13 @@
 - **Test Code:** [TC001_Issue_a_certificate_linked_to_an_existing_reception_and_see_it_listed.py](./TC001_Issue_a_certificate_linked_to_an_existing_reception_and_see_it_listed.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the web application did not render and remained blank so the test cannot proceed.
+The application UI could not be reached — the single-page app failed to render, so the test cannot be executed.
 
 Observations:
-- The page stayed blank with 0 interactive elements on the Certificates page.
-- Navigating to the app root, /samples and /certificates did not load any UI.
-- Multiple wait attempts (3s, 5s, 5s, 3s) produced no change.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/2aa63a82-cb0e-48f2-bf87-8fb401d9042f
+- Navigated to http://localhost:5173/samples and the page is blank with 0 interactive elements.
+- Page screenshot is empty and page stats report 0 links, 0 interactive elements.
+- A prior navigation to http://localhost:5173/d:\enjaz-web also did not render the SPA.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/54c7fdb3-b438-479b-b5c7-6671a2d05fa3
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -31,13 +31,13 @@ Observations:
 - **Test Code:** [TC002_Create_a_new_sample_reception_and_see_it_listed_with_linkage_status.py](./TC002_Create_a_new_sample_reception_and_see_it_listed_with_linkage_status.py)
 - **Test Error:** TEST BLOCKED
 
-The SPA did not render, so the test cannot proceed to create or verify a reception.
+The feature could not be reached — the web application UI did not load, preventing the test from running.
 
 Observations:
-- The page is blank and there are 0 interactive elements on http://localhost:5173/samples
-- Navigating to / and /samples (and the project path) repeatedly did not produce a usable UI
-- Without a rendered UI I cannot open the Samples flow or create a reception
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/470f80ff-a4da-48d9-8303-b580389bdf65
+- The page is blank (screenshot shows an empty white page) and the browser reports 0 interactive elements.
+- Navigated to http://localhost:5173/, /samples, and a local path; waited multiple times, but the SPA never rendered.
+- No reception UI, forms, or navigation elements were available to continue the test.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/fe950fee-b6ef-497c-b5bb-2bc179e5e2bb
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -46,13 +46,13 @@ Observations:
 - **Test Code:** [TC003_Bulk_issue_a_grouped_certificate_for_multiple_receptions_and_downloadprint_PDF.py](./TC003_Bulk_issue_a_grouped_certificate_for_multiple_receptions_and_downloadprint_PDF.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the single-page app did not render, so I could not access Samples or Certificates to perform grouped certificate issuance.
+The feature could not be reached — the single-page application did not render, preventing the reception and certificate workflows from being executed.
 
 Observations:
-- The page at http://localhost:5173/ is blank and shows 0 interactive elements.
-- Navigating to /samples and the local project path also produced empty pages with 0 interactive elements.
-- The screenshot shows a white/blank page, indicating the SPA failed to load.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/d3667307-4660-4760-99a7-b1b5b8eb624a
+- The page is blank and shows 0 interactive elements.
+- Multiple navigations (including /samples and the app root) did not load the SPA.
+- The UI screenshot is empty (white), indicating the app failed to render in the browser tab.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/a7d68267-3e1a-401e-be27-809bf366492a
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -61,13 +61,13 @@ Observations:
 - **Test Code:** [TC004_Add_multiple_receptions_in_sequence_and_see_them_appended_to_the_grid.py](./TC004_Add_multiple_receptions_in_sequence_and_see_them_appended_to_the_grid.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the Samples page UI (SPA) did not load, so the receptionist workflow cannot be exercised.
+The Samples page and app UI did not render, preventing the test from running.
 
 Observations:
-- Navigated to /samples but the page is blank with no interactive elements.
-- Waited for 3s and then 5s, but the app UI did not render.
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/c32a7d1f-0e9b-4eae-bbb6-9ddeee7774e0
+- The page is blank and shows 0 interactive elements.
+- Navigating to /samples and waiting did not load the SPA.
+- The application appears unavailable, so UI interactions required for the test cannot be performed.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/6edf9168-2b2d-4be2-ba27-37f29224ec9f
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -76,13 +76,13 @@ Observations:
 - **Test Code:** [TC005_Issue_Certificate_quick_action_opens_reception_search_and_proceeds_to_issuance.py](./TC005_Issue_Certificate_quick_action_opens_reception_search_and_proceeds_to_issuance.py)
 - **Test Error:** TEST BLOCKED
 
-The web application did not load — the page is blank so the dashboard quick action cannot be reached.
+The test could not run because the web app UI did not load — the single-page app rendered a blank page with no interactive elements, so I could not exercise the Dashboard or Issue Certificate quick action.
 
 Observations:
-- The page is empty with 0 interactive elements.
-- Navigating to http://localhost:5173/ and waiting did not reveal any UI.
-- The screenshot shows a blank page.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/d1f2764a-165e-4413-babc-3372a9015fac
+- The page shows 0 interactive elements and a blank white screen.
+- Navigations to / and /samples succeeded at the network level but the SPA UI never rendered.
+- I waited multiple times (several short waits totaling ~20s) and retried navigation; nothing changed.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/aa712592-3168-4a7b-aa03-ffd713e2adc5
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -91,12 +91,13 @@ Observations:
 - **Test Code:** [TC006_Dashboard_shows_key_counters_and_monthly_trend_charts.py](./TC006_Dashboard_shows_key_counters_and_monthly_trend_charts.py)
 - **Test Error:** TEST BLOCKED
 
-The dashboard could not be reached because the single-page application did not render. This prevented verifying the high-level counters and monthly charts.
+The dashboard could not be reached — the SPA did not render and the page remained blank so the verification cannot proceed.
 
 Observations:
-- The page is blank (screenshot shows an empty white page).
-- There are 0 interactive elements on the page after navigations and multiple waits.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/7822cefc-40b6-463d-aa32-7adf4c3d2722
+- Navigated to http://localhost:5173/ and http://localhost:5173/d:\enjaz-web but the page remained blank with 0 interactive elements.
+- The current tab shows /dashboard but the screenshot and page content are empty.
+
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/199b1f36-249c-4ddc-ac76-8a3d77ff041c
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -105,13 +106,12 @@ Observations:
 - **Test Code:** [TC007_Quick_Search_takes_user_to_Samples_with_search_focused.py](./TC007_Quick_Search_takes_user_to_Samples_with_search_focused.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the dashboard SPA did not render, so Quick Search cannot be tested.
+The application did not load so the Quick Search feature could not be reached.
 
 Observations:
-- Navigated to http://localhost:5173/dashboard and the page is blank.
-- The page shows 0 interactive elements (SPA not loaded).
-- Because the UI never appears, Quick Search and Samples views cannot be accessed for verification.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/8d6f4e68-d010-44ba-8d03-80ceebd12012
+- The page is blank and shows 0 interactive elements after navigation and waiting.
+- Navigation to http://localhost:5173/ failed (site unavailable).
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/bc047445-a6a5-4071-834f-e90fcea92898
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -120,12 +120,12 @@ Observations:
 - **Test Code:** [TC008_Download_a_PDF_report_for_a_selected_date_range_and_type.py](./TC008_Download_a_PDF_report_for_a_selected_date_range_and_type.py)
 - **Test Error:** TEST BLOCKED
 
-The reports page could not be reached — the single-page app returned a blank page and no controls are available, so the PDF generation test cannot proceed.
+The feature could not be reached — the SPA did not render the Reports UI, so the report controls were not accessible.
 
 Observations:
-- Navigation to http://localhost:5173/ and http://localhost:5173/reports completed but the page is blank.
-- The page shows 0 interactive elements (no report type selector, no date fields, no generate button).
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/95391454-3524-440d-8fc9-d0ab62a34c06
+- The /reports page is blank and shows no interactive elements.
+- The app root previously remained blank after waiting, and navigating to /reports did not render the UI.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/adc0efe1-155f-484e-a217-231ff4cefa32
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -134,13 +134,13 @@ Observations:
 - **Test Code:** [TC009_Required_field_validation_prevents_submitting_an_incomplete_reception.py](./TC009_Required_field_validation_prevents_submitting_an_incomplete_reception.py)
 - **Test Error:** TEST BLOCKED
 
-The reception form could not be reached because the Samples page failed to load — the app shows a blank page with no interactive elements.
+The single-page application did not load, so the reception form could not be reached and the required-field validation could not be tested.
 
 Observations:
-- Navigated to /samples but the page rendered blank with 0 interactive elements.
-- The SPA did not load or render UI despite waiting and retrying navigation.
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/c95dee0a-e25d-41d0-b803-6e01e82709f8
+- The page displayed a blank viewport with 0 interactive elements (white page).
+- I attempted navigation to several URLs (root and /samples variants) and waited 5 seconds, but the SPA never rendered.
+- The corrected /samples URL returned site unavailable when retried.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/262043d1-4329-4f6c-86c8-776966cd965b
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -149,12 +149,13 @@ Observations:
 - **Test Code:** [TC010_Cannot_issue_a_certificate_without_linking_a_reception.py](./TC010_Cannot_issue_a_certificate_without_linking_a_reception.py)
 - **Test Error:** TEST BLOCKED
 
-The Certificates page could not be reached because the single-page app did not render.
+The certificate issuance workflow could not be reached because the web application on localhost is not responding.
 
 Observations:
-- The page is blank and shows 0 interactive elements.
-- Multiple navigations and waits did not cause the SPA to load the Certificates UI.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/197b6b49-5d1f-4da9-a8c4-fd3965bf5a93
+- The browser shows 'ERR_EMPTY_RESPONSE' for 127.0.0.1:5173.
+- The page displays only a Reload button and reloading did not recover the SPA or reveal the Certificates UI.
+- There are no interactive elements from the application UI available to continue the test.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/21284210-d6cc-4c10-8172-8f2b898388a4
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -163,12 +164,13 @@ Observations:
 - **Test Code:** [TC011_Generate_a_PDF_report_scoped_to_a_single_entity_with_charts_suppressed.py](./TC011_Generate_a_PDF_report_scoped_to_a_single_entity_with_charts_suppressed.py)
 - **Test Error:** TEST BLOCKED
 
-The reports feature could not be reached because the single-page app did not render any UI on the /reports page.
+The Reports page could not be reached because the single-page app did not render and there are no interactive elements to exercise the feature.
 
 Observations:
-- The /reports page shows a blank viewport with 0 interactive elements.
-- Navigation to /reports completed and two waits (3s and 5s) were performed, but no UI appeared.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/c22b8d9c-249e-48ec-8e93-1abd77220db5
+- Navigated to http://localhost:5173/reports and the page remained blank (white) with 0 interactive elements.
+- Waited multiple times (3s and 5s) and retried navigation, but the UI never loaded.
+
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/1cce152e-64ef-4dde-a254-8bdf0b58e8bc
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -177,13 +179,12 @@ Observations:
 - **Test Code:** [TC012_Change_filters_and_regenerate_export_reflects_updated_criteria.py](./TC012_Change_filters_and_regenerate_export_reflects_updated_criteria.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the SPA did not render, preventing the test from running.
+The reports feature could not be reached because the single-page app did not render — the page is blank and there are no interactive elements.
 
 Observations:
-- The root page and /reports are blank and show 0 interactive elements.
-- Multiple navigation attempts (3) and a wait (3s) did not load the SPA.
-- The reports UI could not be accessed, so filters and export cannot be tested.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/d1542a0f-cfd0-48e0-a1a9-d09647e4c2c3
+- Navigating to http://localhost:5173/ and /reports showed a blank page with 0 interactive elements.
+- Two wait attempts (3s and 5s) did not change the page state.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/ac4d399f-f365-45f1-afdb-7b869feecdba
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
@@ -192,13 +193,13 @@ Observations:
 - **Test Code:** [TC013_Prevent_report_generation_when_the_date_range_is_incomplete.py](./TC013_Prevent_report_generation_when_the_date_range_is_incomplete.py)
 - **Test Error:** TEST BLOCKED
 
-The feature could not be reached — the web app UI did not load so the report generation flow could not be tested.
+The feature could not be reached — the single-page application failed to render, so the reports UI and controls are not available to run the test.
 
 Observations:
-- The /reports page is blank (white) with no visible UI.
-- The page shows 0 interactive elements after navigation and a 2s wait.
-- Navigating to the app root and /reports did not render the SPA UI.
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/02e0047b-4b41-455f-8802-c62e61a988b9/d83c16da-75d9-48ce-86cc-549d68494ca4
+- The page displays a blank white screen with 0 interactive elements.
+- Navigating to /reports and revisiting the app root did not load the SPA or reveal any form fields or buttons needed for the test.
+- Without the UI rendering, I cannot select a report type, set dates, or trigger the PDF export.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/558d02de-d33f-4a1e-b745-e73e3e36351b/76c97c81-95be-4e7d-b048-4a9d8696d165
 - **Status:** BLOCKED
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---

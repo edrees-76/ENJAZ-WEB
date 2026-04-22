@@ -1,0 +1,154 @@
+version: "2"
+type: backend
+tech_stack:
+  - C#
+  - ASP.NET Core 8
+  - Entity Framework Core
+  - PostgreSQL
+  - Redis
+  - JWT Authentication
+  - Serilog
+  - OpenTelemetry
+  - Hangfire
+notes: |
+  CRITICAL: This ASP.NET Core 8 API uses the default System.Text.Json serializer which outputs ALL JSON property names in camelCase.
+  Login response returns { "accessToken": "...", "refreshToken": "..." } — NOT access_token/refresh_token.
+  Admin credentials: username=admin, password=Edrees1222004
+  Rate limiting is disabled via environment variable ENJAZ_SKIP_AUTH_RATE_LIMIT=true.
+  Sample objects require these fields: sampleNumber (string), description (string), root (string).
+  The role field when creating users accepts integer values: 0=Admin, 1=User.
+features:
+  - name: Authentication API
+    description: User authentication and JWT token generation
+    files:
+      - Controllers/AuthController.cs
+      - Services/TokenService.cs
+    endpoints:
+      - method: POST
+        path: /api/v1/auth/login
+        description: Authenticate user and return JWT tokens
+        auth_required: false
+        request_schema:
+          body:
+            username: string
+            password: string
+        response_schema:
+          "200":
+            accessToken: string (JWT token)
+            refreshToken: string (refresh token)
+          "401": Unauthorized
+      - method: POST
+        path: /api/v1/auth/refresh
+        description: Refresh JWT token using refresh token. The refresh token MUST be sent in the request cookies as 'refreshToken=<value>'.
+        auth_required: false
+        request_schema:
+          body: {}
+        response_schema:
+          "200":
+            accessToken: string (new JWT token)
+            refreshToken: string (new refresh token)
+          "401": Unauthorized
+
+  - name: Users Management API
+    description: CRUD operations for system users
+    files:
+      - Controllers/UsersController.cs
+      - Services/UserService.cs
+    endpoints:
+      - method: GET
+        path: /api/v1/users
+        description: Get all users
+        auth_required: true
+        response_schema:
+          "200": UserDto[]
+      - method: POST
+        path: /api/v1/users
+        description: Create a new user
+        auth_required: true
+        request_schema:
+          body:
+            username: string
+            password: string
+            fullName: string
+            role: int (0=Admin, 1=User)
+        response_schema:
+          "201": UserDto (contains id, username, fullName, role)
+          "400": Validation error
+
+  - name: Samples API
+    description: CRUD operations for sample receptions
+    files:
+      - Controllers/SamplesController.cs
+    endpoints:
+      - method: GET
+        path: /api/v1/samples
+        description: List sample receptions
+        auth_required: true
+        response_schema:
+          "200": SampleReception[]
+      - method: POST
+        path: /api/v1/samples
+        description: Add new sample reception
+        auth_required: true
+        request_schema:
+          body:
+            analysisRequestNumber: string (required)
+            sender: string (required)
+            samples:
+              - sampleNumber: string (required)
+                description: string (required)
+                root: string (required, e.g. "soil", "water", "air")
+        response_schema:
+          "201": SampleReception
+          "400": Validation error
+
+  - name: Certificates API
+    description: Issue and manage certificates
+    files:
+      - Controllers/CertificatesController.cs
+    endpoints:
+      - method: POST
+        path: /api/v1/certificates
+        description: Issue a new certificate
+        auth_required: true
+        request_schema:
+          body:
+            sampleReceptionId: int
+            certificateType: string
+            sender: string
+            issueDate: string
+            analysisType: string
+            samples: array
+        response_schema:
+          "201": Certificate
+          "400": Validation error
+      - method: POST
+        path: /api/v1/certificates/{id}/pdf
+        description: Generate PDF for a certificate
+        auth_required: true
+        response_schema:
+          "200": File content (PDF)
+          "404": Not Found
+
+  - name: Settings API
+    description: System settings, backup and restore
+    files:
+      - Controllers/SettingsController.cs
+      - Services/SettingsService.cs
+    endpoints:
+      - method: GET
+        path: /api/v1/settings/system
+        description: Get system settings
+        auth_required: true
+        response_schema:
+          "200": SystemSettings
+      - method: POST
+        path: /api/v1/settings/backup/export
+        description: Export system backup. Requires {"password": "admin"}
+        auth_required: true
+        request_schema:
+          body:
+            password: string
+        response_schema:
+          "200": File content (JSON/Encrypted)
+known_limitations: []

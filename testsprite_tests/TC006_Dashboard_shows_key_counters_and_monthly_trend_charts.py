@@ -33,13 +33,16 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Load the app root so the dashboard SPA can initialize (navigate to /).
+        # -> Wait for the SPA to finish loading. If the page remains blank, navigate to the root path '/' (http://localhost:5173/) to reach the dashboard.
         await page.goto("http://localhost:5173/")
+        
+        # -> Try an alternate route to load the dashboard UI by navigating to the dashboard path (/dashboard) to see if the SPA route renders correctly.
+        await page.goto("http://localhost:5173/dashboard")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Samples')]").nth(0).is_visible(), "The dashboard should display high-level counters for Samples and Certificates so an operations user can monitor activity at a glance"
-        assert await frame.locator("xpath=//*[contains(., 'Monthly')]").nth(0).is_visible(), "The dashboard should display monthly trend charts for Samples and Certificates so an operations user can monitor monthly activity at a glance"
+        assert await frame.locator("xpath=//*[contains(., 'Samples')]").nth(0).is_visible(), "The dashboard should display high-level counters for samples and certificates.",
+        assert await frame.locator("xpath=//*[contains(., 'Monthly Samples')]").nth(0).is_visible(), "The dashboard should display monthly trend charts for samples and certificates.",
         await asyncio.sleep(5)
 
     finally:

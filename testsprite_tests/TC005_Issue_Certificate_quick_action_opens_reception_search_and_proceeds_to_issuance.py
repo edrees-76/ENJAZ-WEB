@@ -33,13 +33,16 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Wait for the page to finish loading and reveal interactive elements. If still empty, navigate to http://localhost:5173/ to load the app root.
+        # -> Navigate directly to /samples (explicit step requested) to attempt to reach the Samples page because the dashboard SPA did not render.
+        await page.goto("http://localhost:5173/samples")
+        
+        # -> Try loading the dashboard route to get the SPA to render interactive elements by navigating to http://localhost:5173/ and checking for interactive elements.
         await page.goto("http://localhost:5173/")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'Linked Receptions')]").nth(0).is_visible(), "The certificate issuance form should show at least one linked reception after selecting a reception from the search modal"
-        assert await frame.locator("xpath=//*[contains(., 'Certificate details')]").nth(0).is_visible(), "The user should be able to enter certificate details in the issuance form after a reception is linked"
+        assert await frame.locator("xpath=//*[contains(., 'Issue Certificate')]").nth(0).is_visible(), "The certificate issuance form should be visible after selecting a reception from the quick action.",
+        assert await frame.locator("xpath=//*[contains(., 'Certificate details')]").nth(0).is_visible(), "The user should be able to proceed with entering certificate details after linking a reception.",
         await asyncio.sleep(5)
 
     finally:

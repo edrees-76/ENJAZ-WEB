@@ -33,15 +33,15 @@ async def run_test():
         # -> Navigate to http://localhost:5173/d:\\enjaz-web
         await page.goto("http://localhost:5173/d:\\enjaz-web")
         
-        # -> Navigate to the reports page (/reports) to locate the reports UI and controls.
+        # -> Navigate to the reports page (/reports) so I can interact with report filters.
         await page.goto("http://localhost:5173/reports")
         
-        # -> Reload the application by navigating to http://localhost:5173/ and wait for the SPA to finish loading, then re-check the page for interactive elements (reports UI).
+        # -> Try to get the SPA to render by waiting again; if that doesn't help, reload the app root to force the SPA to initialize, then re-check for interactive elements so I can select report type and set date filters.
         await page.goto("http://localhost:5173/")
         
         # --> Assertions to verify final state
         frame = context.pages[-1]
-        assert await frame.locator("xpath=//*[contains(., 'A new export has been generated')]").nth(0).is_visible(), "The UI should indicate a new export was generated for the updated criteria after regenerating the export."
+        assert await frame.locator("xpath=//*[contains(., 'New export generated')]").nth(0).is_visible(), "The UI should show that a new export was generated after changing the report filters and regenerating the export."
         await asyncio.sleep(5)
 
     finally:

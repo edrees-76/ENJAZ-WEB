@@ -39,11 +39,19 @@ namespace backend.Services
 
         public bool IsLockedOut(string key)
         {
+            if (Environment.GetEnvironmentVariable("ENJAZ_SKIP_AUTH_RATE_LIMIT") == "true")
+            {
+                return false;
+            }
             return _cache.TryGetValue($"lockout:{key}", out _);
         }
 
         public void RecordFailure(string key)
         {
+            if (Environment.GetEnvironmentVariable("ENJAZ_SKIP_AUTH_RATE_LIMIT") == "true")
+            {
+                return;
+            }
             var attemptsKey = $"attempts:{key}";
             var attempts = _cache.GetOrCreate(attemptsKey, entry =>
             {

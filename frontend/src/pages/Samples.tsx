@@ -529,14 +529,13 @@ export const Samples = () => {
                     <label className="text-slate-500 dark:text-gray-400 text-sm font-medium mr-1 flex items-center gap-2">
                       <FileText className="w-4 h-4 text-cyan-600 dark:text-cyan-500" />
                       رقم الإيصال المالي
-                      <Lock className="w-3 h-3 opacity-50" title="يتم تعبئته تلقائياً" />
                     </label>
                     <input
                       type="text"
-                      readOnly
                       value={formData.financialReceiptNumber}
-                      className="w-full bg-slate-200/50 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3.5 text-slate-500 dark:text-gray-400 cursor-not-allowed focus:outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500 font-mono"
-                      placeholder="يتم التعبئة تلقائياً"
+                      onChange={(e) => setFormData({ ...formData, financialReceiptNumber: e.target.value })}
+                      className="w-full bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3.5 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all placeholder:text-slate-400 dark:placeholder:text-gray-500"
+                      placeholder="أدخل رقم الإيصال المالي"
                     />
                   </div>
                 </div>
