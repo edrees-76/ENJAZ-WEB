@@ -64,7 +64,7 @@ namespace backend.Services
 
             // === المخطط الزمني (Timeline) ===
             var daysDiff = (request.EndDate - request.StartDate).TotalDays;
-            List<ChartDataPoint> timeline;
+            List<ReportChartDataPoint> timeline;
 
             if (daysDiff <= 60)
             {
@@ -72,7 +72,7 @@ namespace backend.Services
                 timeline = certificates
                     .GroupBy(c => c.IssueDate.Date)
                     .OrderBy(g => g.Key)
-                    .Select(g => new ChartDataPoint
+                    .Select(g => new ReportChartDataPoint
                     {
                         Label = g.Key.ToString("MM/dd"),
                         Value = g.Sum(c => c.SampleCount),
@@ -86,7 +86,7 @@ namespace backend.Services
                 timeline = certificates
                     .GroupBy(c => new { c.IssueDate.Year, c.IssueDate.Month })
                     .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
-                    .Select(g => new ChartDataPoint
+                    .Select(g => new ReportChartDataPoint
                     {
                         Label = GetArabicMonth(g.Key.Month),
                         Value = g.Sum(c => c.SampleCount),
@@ -96,10 +96,10 @@ namespace backend.Services
             }
 
             // === توزيع أنواع الشهادات (Pie Chart) ===
-            var certDistribution = new List<ChartDataPoint>
+            var certDistribution = new List<ReportChartDataPoint>
             {
-                new ChartDataPoint { Label = "بيئية", Value = envCerts },
-                new ChartDataPoint { Label = "استهلاكية", Value = consCerts }
+                new ReportChartDataPoint { Label = "بيئية", Value = envCerts },
+                new ReportChartDataPoint { Label = "استهلاكية", Value = consCerts }
             };
 
             // === أعلى 7 موردين (Bar Chart) ===
@@ -108,7 +108,7 @@ namespace backend.Services
                 .GroupBy(c => c.Supplier!)
                 .OrderByDescending(g => g.Count())
                 .Take(7)
-                .Select(g => new ChartDataPoint { Label = g.Key, Value = g.Count() })
+                .Select(g => new ReportChartDataPoint { Label = g.Key, Value = g.Count() })
                 .ToList();
 
             // === أبرز 5 جهات مرسلة (Pie Chart) ===
@@ -117,7 +117,7 @@ namespace backend.Services
                 .GroupBy(c => c.Sender!)
                 .OrderByDescending(g => g.Count())
                 .Take(5)
-                .Select(g => new ChartDataPoint { Label = g.Key, Value = g.Count() })
+                .Select(g => new ReportChartDataPoint { Label = g.Key, Value = g.Count() })
                 .ToList();
 
             // === أهم 7 دول منشأ (Bar Chart) ===
@@ -126,14 +126,14 @@ namespace backend.Services
                 .GroupBy(c => c.Origin!)
                 .OrderByDescending(g => g.Count())
                 .Take(7)
-                .Select(g => new ChartDataPoint { Label = g.Key, Value = g.Count() })
+                .Select(g => new ReportChartDataPoint { Label = g.Key, Value = g.Count() })
                 .ToList();
 
             // === الأداء الشهري على مدار السنة ===
             var monthlyPerformance = certificates
                 .GroupBy(c => new { c.IssueDate.Year, c.IssueDate.Month })
                 .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
-                .Select(g => new ChartDataPoint
+                .Select(g => new ReportChartDataPoint
                 {
                     Label = GetArabicMonth(g.Key.Month),
                     Value = g.Count(c => c.CertificateType.Contains("بيئية")),
@@ -142,10 +142,10 @@ namespace backend.Services
                 .ToList();
 
             // === مقارنة أنواع العينات (بيئي vs استهلاكي) ===
-            var sampleTypeComparison = new List<ChartDataPoint>
+            var sampleTypeComparison = new List<ReportChartDataPoint>
             {
-                new ChartDataPoint { Label = "بيئية", Value = envSamples },
-                new ChartDataPoint { Label = "استهلاكية", Value = consSamples }
+                new ReportChartDataPoint { Label = "بيئية", Value = envSamples },
+                new ReportChartDataPoint { Label = "استهلاكية", Value = consSamples }
             };
 
             // === تحليل السلع (أعلى أنواع التحليل) ===
@@ -154,7 +154,7 @@ namespace backend.Services
                 .GroupBy(c => c.AnalysisType!)
                 .OrderByDescending(g => g.Count())
                 .Take(7)
-                .Select(g => new ChartDataPoint { Label = g.Key, Value = g.Count() })
+                .Select(g => new ReportChartDataPoint { Label = g.Key, Value = g.Count() })
                 .ToList();
 
             return new ReportSummaryDto

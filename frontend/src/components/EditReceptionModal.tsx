@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle, Beaker, FileText, Plus, Trash2, Lock } from 'lucide-react';
 import { useNavigationLock } from '../hooks/useNavigationLock';
-
+import { useToastStore } from '../store/useToastStore';
 import type { Sample, SampleReception } from '../store/useSampleStore';
 
 interface EditReceptionModalProps {
@@ -18,6 +18,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
   onSave 
 }) => {
   const { lock, unlock } = useNavigationLock();
+  const { addToast } = useToastStore();
   const [formData, setFormData] = useState<SampleReception | null>(null);
   const [currentSamples, setCurrentSamples] = useState<Sample[]>([]);
   const [newSample, setNewSample] = useState<Sample>({ sampleNumber: '', description: '' });
@@ -133,6 +134,15 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     if (currentSamples.length === 0) missing.push("قائمة العينات (يجب إضافة عينة واحدة على الأقل)");
     
     setErrors(missing);
+    
+    if (missing.length > 0) {
+      addToast({
+        type: 'error',
+        message: 'يوجد نقص في البيانات المطلوبة',
+        duration: 4000
+      });
+    }
+
     return missing.length === 0;
   };
 
@@ -148,11 +158,21 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     setIsSaving(false);
     if (success) {
       if (success === 'queued') {
-         alert('الإنترنت غير متصل حالياً. تم حفظ بيانات التعديل محلياً وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+        addToast({
+          type: 'info',
+          message: 'الإنترنت غير متصل. تم حفظ التعديلات محلياً.',
+          duration: 6000
+        });
+      } else {
+        addToast({
+          type: 'success',
+          message: 'تم حفظ التعديلات بنجاح'
+        });
       }
       onClose();
     } else {
-      setErrors(["حدث خطأ أثناء حفظ التعديلات. يرجى المحاولة مرة أخرى."]);
+      // API error is handled by the global interceptor, but we can still show a fallback
+      setErrors(["حدث خطأ أثناء حفظ التعديلات."]);
     }
   };
 

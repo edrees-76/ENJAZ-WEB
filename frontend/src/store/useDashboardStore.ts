@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import apiClient from '../services/apiClient';
 import { setEntityCache, getEntityCache } from '../lib/db';
 
-interface MonthlyStat {
-  month: string;
+interface ChartDataPoint {
+  label: string;
   environmental: number;
   consumable: number;
 }
@@ -17,25 +17,51 @@ interface DashboardStats {
   certificatesToday: number;
   certificatesEnvironmental: number;
   certificatesConsumable: number;
-  monthlySamples: MonthlyStat[];
-  monthlyCertificates: MonthlyStat[];
+  chartSamples: ChartDataPoint[];
+  chartCertificates: ChartDataPoint[];
 }
+
+type Period = "today" | "week" | "month" | "year";
 
 interface DashboardState {
   stats: DashboardStats | null;
+  period: Period;
+  targetYear: number | null;
   loading: boolean;
   error: string | null;
+  setPeriod: (p: Period) => void;
+  setTargetYear: (y: number | null) => void;
   fetchStats: () => Promise<void>;
 }
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   stats: null,
+  period: "year",
+  targetYear: null,
   loading: false,
   error: null,
+  setPeriod: (p) => {
+    // If switching away from year, clear targetYear
+    if (p !== "year") set({ targetYear: null });
+    set({ period: p });
+    get().fetchStats();
+  },
+  setTargetYear: (y) => {
+    set({ targetYear: y, period: "year" }); // Auto switch to "year" period
+    get().fetchStats();
+  },
   fetchStats: async () => {
     set({ loading: true, error: null });
+    const { period, targetYear } = get();
+    // Get Timezone string safely
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
     try {
-      const response = await apiClient.get('/dashboard/stats');
+      let url = `/dashboard/stats?period=${period}&timezone=${encodeURIComponent(tz)}`;
+      if (targetYear && period === "year") {
+        url += `&year=${targetYear}`;
+      }
+      const response = await apiClient.get(url);
       const data = response.data;
       set({ stats: data, loading: false });
 

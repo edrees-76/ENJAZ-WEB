@@ -1,4 +1,7 @@
 import axios from 'axios';
+import { mapError } from '../utils/errorMapper';
+import { useToastStore } from '../store/useToastStore';
+import { logError } from '../utils/logger';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5144/api/v1',
@@ -41,6 +44,33 @@ apiClient.interceptors.response.use(
         }
       }
     }
+
+    // Skip handler if requested by the config
+    if (error.config?.skipGlobalErrorHandler) {
+      return Promise.reject(error);
+    }
+
+    logError(error);
+
+    // Determine if error is retryable (Network error, timeout, or 5xx)
+    const isRetryable = !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED';
+    const message = mapError(error);
+
+    useToastStore.getState().addToast({
+      type: 'error',
+      message,
+      duration: isRetryable ? 8000 : 4000,
+      action: isRetryable ? {
+        label: 'إعادة المحاولة',
+        onClick: () => {
+          // Retry the original request
+          apiClient.request(error.config).catch(() => {
+            // Further errors will be caught by this interceptor again
+          });
+        }
+      } : undefined
+    });
+
     return Promise.reject(error);
   }
 );

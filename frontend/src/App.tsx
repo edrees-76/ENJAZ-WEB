@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { Dashboard } from './pages/Dashboard';
 import { DashboardHome } from './pages/DashboardHome';
@@ -17,6 +17,7 @@ const About = lazy(() => import('./pages/About').then(module => ({ default: modu
 import { useAuthStore } from './store/useAuthStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SignalRProvider } from './providers/SignalRProvider';
+import ToastContainer from './components/ToastContainer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,37 +35,43 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/" />;
 };
 
+const router = createBrowserRouter([
+  { path: "/", element: <Landing /> },
+  { path: "/welcome", element: <Navigate to="/" replace /> },
+  { path: "/login", element: <Login /> },
+  { path: "/design-review", element: <DesignReview /> },
+  { 
+    path: "/app", 
+    element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
+    children: [
+      { index: true, element: <DashboardHome /> },
+      { path: "samples", element: <Samples /> },
+      { path: "certificates", element: <Certificates /> },
+      { path: "reports", element: <Reports /> },
+      { path: "procedures", element: <AdminProcedures /> },
+      { path: "users", element: <Users /> },
+      { path: "settings", element: <Settings /> },
+      { path: "help", element: <Help /> },
+      { 
+        path: "about", 
+        element: (
+          <Suspense fallback={<div className="p-8 text-center animate-pulse">جاري تحميل واجهة التعريف...</div>}>
+            <About />
+          </Suspense>
+        ) 
+      }
+    ]
+  },
+  { path: "/print/certificate/:id", element: <ProtectedRoute><PrintPage /></ProtectedRoute> },
+  { path: "*", element: <Navigate to="/" replace /> }
+]);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SignalRProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={
-              <Landing />
-            } />
-            <Route path="/welcome" element={<Navigate to="/" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/design-review" element={<DesignReview />} />
-            <Route path="/app" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
-              <Route index element={<DashboardHome />} />
-              <Route path="samples" element={<Samples />} />
-              <Route path="certificates" element={<Certificates />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="procedures" element={<AdminProcedures />} />
-              <Route path="users" element={<Users />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="help" element={<Help />} />
-              <Route path="about" element={
-                <Suspense fallback={<div className="p-8 text-center animate-pulse">جاري تحميل واجهة التعريف...</div>}>
-                  <About />
-                </Suspense>
-              } />
-            </Route>
-            <Route path="/print/certificate/:id" element={<ProtectedRoute><PrintPage /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+        <ToastContainer />
+        <RouterProvider router={router} />
       </SignalRProvider>
     </QueryClientProvider>
   );

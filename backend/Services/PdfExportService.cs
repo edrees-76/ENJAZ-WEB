@@ -185,7 +185,7 @@ namespace backend.Services
                                 row.RelativeItem().PaddingRight(10).Column(c =>
                                 {
                                     c.Item().PaddingBottom(5).Text("نسب توزيع الشهادات والعينات").FontSize(10).Bold().FontColor(Colors.Grey.Darken2);
-                                    var distData = new List<ChartDataPoint>
+                                    var distData = new List<ReportChartDataPoint>
                                     {
                                         new() { Label = "شهادات بيئية", Value = summary.EnvironmentalCertificates },
                                         new() { Label = "شهادات استهلاكية", Value = summary.ConsumableCertificates },
@@ -243,7 +243,7 @@ namespace backend.Services
                 .Text(text ?? "").FontSize(8);
         }
 
-        private void AddLightBarChart(ColumnDescriptor col, List<ChartDataPoint> data, string color)
+        private void AddLightBarChart(ColumnDescriptor col, List<ReportChartDataPoint> data, string color)
         {
             var maxVal = data.Max(x => x.Value);
             if (maxVal == 0) maxVal = 1;

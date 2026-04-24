@@ -9,6 +9,7 @@ import {
 import { useSettingsStore, type BackupValidationResult } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useToastStore } from '../store/useToastStore';
 
 // ═══════════════════════════════════════════════
 // Tab Navigation
@@ -220,12 +221,12 @@ const GeneralTab = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () 
             onChange={e => updateSystemSettings({ alertThresholdDays: parseInt(e.target.value) })}
             className="px-3 py-1.5 rounded-xl text-sm font-bold border"
             style={{
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+              backgroundColor: isDark ? '#1e293b' : 'rgba(0,0,0,0.02)',
               borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-              color: 'var(--text-main)',
+              color: isDark ? '#e2e8f0' : '#1e293b',
             }}
           >
-            {[3, 5, 7, 10, 14, 30].map(d => <option key={d} value={d}>{d} أيام</option>)}
+            {[3, 5, 7, 10, 14, 30].map(d => <option key={d} value={d} style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>{d} أيام</option>)}
           </select>
         </SettingRow>
 
@@ -264,14 +265,14 @@ const GeneralTab = ({ isDark, toggleTheme }: { isDark: boolean; toggleTheme: () 
               disabled={!systemSettings?.autoBackupEnabled}
               className="px-3 py-1.5 rounded-xl text-sm font-bold border disabled:opacity-40"
               style={{
-                backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                backgroundColor: isDark ? '#1e293b' : 'rgba(0,0,0,0.02)',
                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                color: 'var(--text-main)',
+                color: isDark ? '#e2e8f0' : '#1e293b',
               }}
             >
-              <option value="daily">يومياً</option>
-              <option value="weekly">أسبوعياً</option>
-              <option value="monthly">شهرياً</option>
+              <option value="daily" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>يومياً</option>
+              <option value="weekly" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>أسبوعياً</option>
+              <option value="monthly" style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>شهرياً</option>
             </select>
           </SettingRow>
           <SettingRow label="آخر نسخة" description="وقت آخر نسخة احتياطية">
@@ -309,7 +310,7 @@ const BackupTab = ({ isDark }: { isDark: boolean }) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 50 * 1024 * 1024) {
-        alert('حجم الملف يتجاوز الحد المسموح (50MB)');
+        useToastStore.getState().addToast({ type: 'error', message: 'حجم الملف يتجاوز الحد المسموح (50MB)' });
         return;
       }
       setRestoreFile(file);
@@ -543,11 +544,11 @@ const AdminTab = ({ isDark }: { isDark: boolean }) => {
             value={archiveMonths}
             onChange={e => setArchiveMonths(parseInt(e.target.value))}
             className="px-3 py-2.5 rounded-xl text-sm font-bold border flex-1"
-            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: 'var(--text-main)' }}
+            style={{ backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: isDark ? '#e2e8f0' : '#1e293b' }}
           >
-            <option value={3}>أقدم من 3 أشهر</option>
-            <option value={6}>أقدم من 6 أشهر</option>
-            <option value={12}>أقدم من سنة</option>
+            <option value={3} style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>أقدم من 3 أشهر</option>
+            <option value={6} style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>أقدم من 6 أشهر</option>
+            <option value={12} style={{ backgroundColor: isDark ? '#1e293b' : '#fff', color: isDark ? '#e2e8f0' : '#1e293b' }}>أقدم من سنة</option>
           </select>
           <button
             onClick={() => archiveLogs(archiveMonths)}

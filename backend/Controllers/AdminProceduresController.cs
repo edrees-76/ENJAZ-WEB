@@ -123,115 +123,134 @@ namespace backend.Controllers
             if (string.IsNullOrWhiteSpace(request.SenderName))
                 return BadRequest(new { message = "يجب تحديد الجهة المرسلة" });
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Npgsql retry strategy requires wrapping user transactions inside ExecuteAsync
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            byte[]? pdfBytes = null;
+            string? referenceNumber = null;
+            int certCount = 0;
+            string? createdByName = null;
+            int? letterId = null;
 
             try
             {
-                var start = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc);
-                var end = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
-
-                // 1. Query matching certificates with projection
-                var certificates = await _context.Certificates
-                    .Include(c => c.Samples)
-                    .Where(c => c.Sender == request.SenderName
-                        && c.IssueDate >= start
-                        && c.IssueDate <= end)
-                    .OrderBy(c => c.IssueDate)
-                    .ToListAsync();
-
-                if (certificates.Count == 0)
-                    return BadRequest(new { message = "لا توجد شهادات مطابقة للمعايير المحددة" });
-
-                var totalSamples = certificates.Sum(c => c.Samples.Count);
-
-                // 2. Generate reference number (REF-YYYY-NNNNNN)
-                var year = DateTime.UtcNow.Year;
-                var lastRef = await _context.ReferralLetters
-                    .IgnoreQueryFilters() // Include soft-deleted for numbering
-                    .Where(r => r.ReferenceNumber.StartsWith($"REF-{year}-"))
-                    .OrderByDescending(r => r.Id)
-                    .FirstOrDefaultAsync();
-
-                int nextSeq = 1;
-                if (lastRef != null)
+                await strategy.ExecuteAsync(async () =>
                 {
-                    var parts = lastRef.ReferenceNumber.Split('-');
-                    if (parts.Length == 3 && int.TryParse(parts[2], out int lastSeq))
-                        nextSeq = lastSeq + 1;
-                }
+                    using var transaction = await _context.Database.BeginTransactionAsync();
 
-                var referenceNumber = $"REF-{year}-{nextSeq:D6}";
+                    var start = DateTime.SpecifyKind(request.StartDate.Date, DateTimeKind.Utc);
+                    var end = DateTime.SpecifyKind(request.EndDate.Date.AddDays(1).AddSeconds(-1), DateTimeKind.Utc);
 
-                // 3. Create the ReferralLetter record
-                var letter = new ReferralLetter
-                {
-                    ReferenceNumber = referenceNumber,
-                    GeneratedAt = DateTime.UtcNow,
-                    SenderName = request.SenderName,
-                    CertificateCount = certificates.Count,
-                    SampleCount = totalSamples,
-                    StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
-                    EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
-                    IncludedColumns = (ReferralColumns)request.IncludedColumns,
-                    TemplateVersion = _pdfService.CurrentTemplateVersion,
-                    CreatedByName = request.CreatedByName ?? "مسؤول النظام"
-                };
+                    // 1. Query matching certificates with projection
+                    var certificates = await _context.Certificates
+                        .Include(c => c.Samples)
+                        .Where(c => c.Sender == request.SenderName
+                            && c.IssueDate >= start
+                            && c.IssueDate <= end)
+                        .OrderBy(c => c.IssueDate)
+                        .ToListAsync();
 
-                _context.ReferralLetters.Add(letter);
-                await _context.SaveChangesAsync();
+                    if (certificates.Count == 0)
+                        throw new InvalidOperationException("NO_MATCHING_CERTIFICATES");
 
-                // 4. Create Snapshot — link certificates to the letter
-                var linkedCerts = certificates.Select(c => new ReferralLetterCertificate
-                {
-                    ReferralLetterId = letter.Id,
-                    CertificateId = c.Id
-                }).ToList();
+                    var totalSamples = certificates.Sum(c => c.Samples.Count);
 
-                _context.ReferralLetterCertificates.AddRange(linkedCerts);
-                await _context.SaveChangesAsync();
+                    // 2. Generate reference number (REF-YYYY-NNNNNN)
+                    var year = DateTime.UtcNow.Year;
+                    var lastRef = await _context.ReferralLetters
+                        .IgnoreQueryFilters() // Include soft-deleted for numbering
+                        .Where(r => r.ReferenceNumber.StartsWith($"REF-{year}-"))
+                        .OrderByDescending(r => r.Id)
+                        .FirstOrDefaultAsync();
 
-                // 5. Generate PDF from snapshot data
-                var certDtos = certificates.Select(c => new ReferralCertificateDto
-                {
-                    Id = c.Id,
-                    CertificateNumber = c.CertificateNumber,
-                    Supplier = c.Supplier,
-                    NotificationNumber = c.NotificationNumber,
-                    SampleCount = c.Samples.Count,
-                    SampleNumbers = string.Join(", ", c.Samples.Select(s => s.SampleNumber))
-                }).ToList();
+                    int nextSeq = 1;
+                    if (lastRef != null)
+                    {
+                        var parts = lastRef.ReferenceNumber.Split('-');
+                        if (parts.Length == 3 && int.TryParse(parts[2], out int lastSeq))
+                            nextSeq = lastSeq + 1;
+                    }
 
-                var pdfBytes = _pdfService.GenerateReferralPdf(letter, certDtos);
+                    referenceNumber = $"REF-{year}-{nextSeq:D6}";
 
-                // 6. Save PDF to disk
-                var fileName = $"{referenceNumber}.pdf";
-                var filePath = Path.Combine(_pdfStoragePath, fileName);
-                await System.IO.File.WriteAllBytesAsync(filePath, pdfBytes);
+                    // 3. Create the ReferralLetter record
+                    var letter = new ReferralLetter
+                    {
+                        ReferenceNumber = referenceNumber,
+                        GeneratedAt = DateTime.UtcNow,
+                        SenderName = request.SenderName,
+                        CertificateCount = certificates.Count,
+                        SampleCount = totalSamples,
+                        StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc),
+                        EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc),
+                        IncludedColumns = (ReferralColumns)request.IncludedColumns,
+                        TemplateVersion = _pdfService.CurrentTemplateVersion,
+                        CreatedByName = request.CreatedByName ?? "مسؤول النظام"
+                    };
 
-                letter.PdfPath = filePath;
-                await _context.SaveChangesAsync();
+                    _context.ReferralLetters.Add(letter);
+                    await _context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                    // 4. Create Snapshot — link certificates to the letter
+                    var linkedCerts = certificates.Select(c => new ReferralLetterCertificate
+                    {
+                        ReferralLetterId = letter.Id,
+                        CertificateId = c.Id
+                    }).ToList();
 
-                // 8. Audit log (detailed)
+                    _context.ReferralLetterCertificates.AddRange(linkedCerts);
+                    await _context.SaveChangesAsync();
+
+                    // 5. Generate PDF from snapshot data
+                    var certDtos = certificates.Select(c => new ReferralCertificateDto
+                    {
+                        Id = c.Id,
+                        CertificateNumber = c.CertificateNumber,
+                        Supplier = c.Supplier,
+                        NotificationNumber = c.NotificationNumber,
+                        SampleCount = c.Samples.Count,
+                        SampleNumbers = string.Join(", ", c.Samples.Select(s => s.SampleNumber))
+                    }).ToList();
+
+                    pdfBytes = _pdfService.GenerateReferralPdf(letter, certDtos);
+
+                    // 6. Save PDF to disk
+                    var fileName = $"{referenceNumber}.pdf";
+                    var filePath = Path.Combine(_pdfStoragePath, fileName);
+                    await System.IO.File.WriteAllBytesAsync(filePath, pdfBytes);
+
+                    letter.PdfPath = filePath;
+                    await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    certCount = certificates.Count;
+                    createdByName = letter.CreatedByName;
+                    letterId = letter.Id;
+                });
+
+                // 8. Audit log (outside transaction)
                 var (auditUserId, auditUserName) = GetCurrentUser();
                 await _audit.LogAsync(auditUserId, auditUserName, "إصدار رسالة إحالة",
-                    $"تم إصدار إحالة لـ {request.SenderName} — عدد الشهادات: {certificates.Count}",
-                    referenceId: letter.Id,
+                    $"تم إصدار إحالة لـ {request.SenderName} — عدد الشهادات: {certCount}",
+                    referenceId: letterId,
                     ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString());
 
                 _logger.LogInformation(
                     "Referral letter generated: {RefNumber} | Sender: {Sender} | Certificates: {Count} | By: {User}",
-                    referenceNumber, request.SenderName, certificates.Count, letter.CreatedByName);
+                    referenceNumber, request.SenderName, certCount, createdByName);
 
                 // 9. Return the PDF file
-                return File(pdfBytes, "application/pdf", $"{referenceNumber}.pdf");
+                return File(pdfBytes!, "application/pdf", $"{referenceNumber}.pdf");
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "NO_MATCHING_CERTIFICATES")
+            {
+                return BadRequest(new { message = "لا توجد شهادات مطابقة للمعايير المحددة" });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Error generating referral letter for {Sender}", request.SenderName);
-                return StatusCode(500, new { message = "حدث خطأ أثناء إنشاء رسالة الإحالة", error = ex.Message });
+                return StatusCode(500, new { message = "حدث خطأ أثناء إنشاء رسالة الإحالة", error = ex.ToString() });
             }
         }
 

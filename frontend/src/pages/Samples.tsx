@@ -20,6 +20,11 @@ import { useSampleStore } from '../store/useSampleStore';
 import { useNavigationLock } from '../hooks/useNavigationLock';
 import { EditReceptionModal } from '../components/EditReceptionModal';
 import { ReceptionDetailsModal } from '../components/ReceptionDetailsModal';
+import { useToastStore } from '../store/useToastStore';
+import { TableSkeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { DensityToggle, useDensity } from '../components/ui/DensityToggle';
+import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav';
 
 const toLocalDateString = () => {
   const d = new Date();
@@ -29,6 +34,8 @@ const toLocalDateString = () => {
 export const Samples = () => {
   const { fetchReceptions, addReception, receptions, loading: isStoreLoading, updateReception } = useSampleStore();
   const { lock, unlock } = useNavigationLock();
+  const { addToast } = useToastStore();
+  const { density, setDensity, classes: dc } = useDensity();
   const [searchParams] = useSearchParams();
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedReceptionIndex, setSelectedReceptionIndex] = useState<number | null>(null);
@@ -82,9 +89,45 @@ export const Samples = () => {
     formData.certificateType !== '' ||
     currentSamples.length > 0;
 
+  const validReceptions = Array.isArray(receptions) ? receptions : [];
+  
+  // Filtering logic
+  const filteredReceptions = validReceptions.filter(r => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'none') return r.status === 'لم يتم إصدار شهادة' || !r.status;
+    if (statusFilter === 'done') return r.status === 'تم إصدار شهادة';
+    return true;
+  });
 
+  const totalPages = Math.ceil(filteredReceptions.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentReceptions = filteredReceptions.slice(indexOfFirstItem, indexOfLastItem);
+
+  const { selectedIndex, setSelectedIndex } = useTableKeyboardNav({
+    itemCount: currentReceptions.length,
+    onSelect: (idx) => {
+      setShowDetailsModal(true);
+    },
+    enabled: !showAddForm && !showEditModal && !showDetailsModal && !showDeleteConfirm && !showCancelConfirm
+  });
 
   useEffect(() => {
+    if (selectedIndex !== null) {
+      setSelectedReceptionIndex(indexOfFirstItem + selectedIndex);
+    }
+  }, [selectedIndex, indexOfFirstItem]);
+
+  useEffect(() => {
+    if (selectedReceptionIndex === null) {
+      setSelectedIndex(null);
+    } else {
+      const localIdx = selectedReceptionIndex - indexOfFirstItem;
+      if (localIdx >= 0 && localIdx < currentReceptions.length) {
+        setSelectedIndex(localIdx);
+      }
+    }
+  }, [selectedReceptionIndex, indexOfFirstItem, currentReceptions.length, setSelectedIndex]);  useEffect(() => {
     const loadData = async () => {
       try {
         await fetchReceptions();
@@ -136,14 +179,14 @@ export const Samples = () => {
     return () => clearTimeout(timeoutId);
   }, [formData, currentSamples, isFormDirty, showAddForm]);
 
-  // Smart Navigation Lock: Only lock if form has data
+  // Navigation Lock: Lock if form is open to prevent accidental navigation
   useEffect(() => {
-    if (showAddForm && isFormDirty) {
+    if (showAddForm) {
       lock();
     } else {
       unlock();
     }
-  }, [isFormDirty, showAddForm, lock, unlock]);
+  }, [showAddForm, lock, unlock]);
 
   const handleAddSample = () => {
     if (newSample.sampleNumber && newSample.description) {
@@ -219,7 +262,16 @@ export const Samples = () => {
 
     if (success) {
       if (success === 'queued') {
-         alert('الإنترنت غير متصل حالياً. تم حفظ بيانات الاستلام محلياً في جهازك وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+        addToast({
+          type: 'info',
+          message: 'الإنترنت غير متصل. تم حفظ البيانات محلياً وسيتم مزامنتها تلقائياً.',
+          duration: 6000
+        });
+      } else {
+        addToast({
+          type: 'success',
+          message: 'تم تسجيل استلام العينات بنجاح'
+        });
       }
       
       // Remove draft upon successful queue or save
@@ -244,7 +296,11 @@ export const Samples = () => {
       setShowAddForm(false);
       unlock();
     } else {
-      setFormErrors(['فشل في حفظ البيانات. تأكد من تشغيل الخادم وإعادة المحاولة.']);
+      addToast({
+        type: 'error',
+        message: 'فشل في حفظ البيانات. تأكد من تشغيل الخادم وأعد المحاولة.',
+        duration: 6000
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -734,21 +790,7 @@ export const Samples = () => {
           {/* List of Previous Receptions (The Dashboard of Samples) */}
           
           {/* Pagination Logic */}
-          {(() => {
-            let validReceptions = Array.isArray(receptions) ? receptions.filter(r => r != null) : [];
-            
-            if (statusFilter === 'done') {
-              validReceptions = validReceptions.filter(r => r.status === 'تم إصدار شهادة');
-            } else if (statusFilter === 'none') {
-              validReceptions = validReceptions.filter(r => r.status !== 'تم إصدار شهادة');
-            }
-            
-            const totalPages = Math.max(1, Math.ceil(validReceptions.length / itemsPerPage));
-            const indexOfLastItem = currentPage * itemsPerPage;
-            const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-            const currentReceptions = validReceptions.slice(indexOfFirstItem, indexOfLastItem);
-            
-            return (
+          {
               <div className="glass-card rounded-[2.5rem] border border-slate-300/50 dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
                 <div className="p-6 border-b border-slate-300 dark:border-white/5 flex justify-between items-center bg-white/40 dark:bg-white/[0.02]">
                   
@@ -760,7 +802,7 @@ export const Samples = () => {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">إجمالي العينات</span>
-                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{validReceptions.length}</span>
+                        <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">{filteredReceptions.length}</span>
                       </div>
                     </div>
 
@@ -771,7 +813,7 @@ export const Samples = () => {
                       <div className="flex flex-col">
                         <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">عينات بيئية</span>
                         <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">
-                          {validReceptions.filter(r => r.certificateType === 'عينات بيئية').length}
+                          {filteredReceptions.filter(r => r.certificateType === 'عينات بيئية').length}
                         </span>
                       </div>
                     </div>
@@ -783,7 +825,7 @@ export const Samples = () => {
                       <div className="flex flex-col">
                         <span className="text-sm font-extrabold text-slate-500 dark:text-gray-400 tracking-wide mb-1 whitespace-nowrap">عينات استهلاكية</span>
                         <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">
-                          {validReceptions.filter(r => r.certificateType === 'عينات استهلاكية').length}
+                          {filteredReceptions.filter(r => r.certificateType === 'عينات استهلاكية').length}
                         </span>
                       </div>
                     </div>
@@ -808,38 +850,43 @@ export const Samples = () => {
                   </div>
                 </div>
 
-                <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-2xl border border-slate-300/50 dark:border-white/10">
-                  <table className="w-full text-right border-collapse relative">
+                <div className="flex items-center justify-between px-5 py-2 border-b border-slate-200 dark:border-white/10 bg-white/30 dark:bg-white/[0.01]">
+                  <span className={`${dc.text} font-bold text-slate-400 dark:text-gray-500`}>عرض {currentReceptions.length} من {validReceptions.length} سجل</span>
+                  <DensityToggle value={density} onChange={setDensity} />
+                </div>
+
+                <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 table-responsive">
+                  <table className="w-full min-w-[900px] text-right border-collapse relative">
                     <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 border-b-2 border-sky-600/50 dark:border-white/10">
-                      <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest text-right">
-                        <th className="p-3 font-extrabold whitespace-nowrap text-center">التسلسل</th>
-                        <th className="p-3 font-extrabold min-w-[200px]">الجهة المرسلة</th>
-                        <th className="p-3 font-extrabold min-w-[150px]">المورد</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap">الإيصال المالي</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap">رقم الإخطار</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap text-center">تاريخ الاستلام</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap text-center">النوع</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap text-center">الحالة</th>
-                        <th className="p-3 font-extrabold whitespace-nowrap text-center">عدد العينات</th>
+                      <tr className={`text-white dark:text-blue-200 ${dc.text} font-extrabold uppercase tracking-widest text-right`}>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap text-center`}>التسلسل</th>
+                        <th className={`${dc.cell} font-extrabold min-w-[200px]`}>الجهة المرسلة</th>
+                        <th className={`${dc.cell} font-extrabold min-w-[150px]`}>المورد</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap`}>الإيصال المالي</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap`}>رقم الإخطار</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap text-center`}>تاريخ الاستلام</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap text-center`}>النوع</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap text-center`}>الحالة</th>
+                        <th className={`${dc.cell} font-extrabold whitespace-nowrap text-center`}>العينات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-white/5">
                       {isStoreLoading ? (
                         <tr>
-                          <td colSpan={9} className="p-20 text-center">
-                            <div className="flex flex-col items-center gap-4">
-                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-                              <p className="text-lg text-slate-600 dark:text-gray-400 font-bold">جاري تحميل البيانات...</p>
-                            </div>
+                          <td colSpan={9}>
+                            <TableSkeleton rows={8} />
                           </td>
                         </tr>
-                      ) : validReceptions.length === 0 ? (
+                      ) : filteredReceptions.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="p-20 text-center">
-                            <div className="flex flex-col items-center gap-4 opacity-40">
-                              <AlertCircle className="w-12 h-12 text-slate-800 dark:text-white" />
-                              <p className="text-lg text-slate-800 dark:text-white">لم يتم العثور على أي معاملات مسجلة</p>
-                            </div>
+                          <td colSpan={9}>
+                            <EmptyState
+                              icon={<Beaker className="w-9 h-9 text-slate-400 dark:text-gray-500" />}
+                              title="لم يتم العثور على أي معاملات"
+                              description="لا توجد سجلات استلام مطابقة للفلتر الحالي."
+                              actionLabel="تسجيل استلام جديد"
+                              onAction={() => setShowAddForm(true)}
+                            />
                           </td>
                         </tr>
                       ) : (
@@ -849,25 +896,26 @@ export const Samples = () => {
                           return (
                             <tr
                               key={globalIdx}
+                              ref={selectedIndex === idx ? (el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) : null}
                               onClick={() => setSelectedReceptionIndex(globalIdx)}
-                              className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${selectedReceptionIndex === globalIdx ? 'bg-cyan-100 dark:bg-cyan-500/20 shadow-sm border-y border-cyan-500/30' : ''}`}
+                              className={`cursor-pointer transition-all duration-200 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${dc.row} ${selectedReceptionIndex === globalIdx ? 'bg-cyan-100 dark:bg-cyan-500/20 shadow-sm border-y border-cyan-500/30' : ''}`}
                             >
-                              <td className="p-3 text-center">
-                                <span className={`text-sm font-mono p-2 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
+                              <td className={`${dc.cell} text-center`}>
+                                <span className={`${dc.text} font-mono p-1.5 rounded-lg transition-all ${selectedReceptionIndex === globalIdx ? 'bg-cyan-600 text-white dark:bg-cyan-500/20 dark:text-cyan-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>{globalIdx + 1}</span>
                               </td>
-                              <td className="p-3 text-slate-900 dark:text-white text-xs font-bold whitespace-nowrap">{item.sender}</td>
-                              <td className="p-3 text-slate-900 dark:text-white text-sm">{item.supplier || '-'}</td>
-                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono text-center">
+                              <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text} font-bold whitespace-nowrap`}>{item.sender}</td>
+                              <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text}`}>{item.supplier || '-'}</td>
+                              <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text} font-mono text-center`}>
                                 {item.financialReceiptNumber ? (
-                                  <span className="bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-slate-200 dark:border-white/10">
+                                  <span className="bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-white/10">
                                     {item.financialReceiptNumber}
                                   </span>
                                 ) : (
                                   <span className="text-slate-400 italic text-xs">---</span>
                                 )}
                               </td>
-                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono whitespace-nowrap">{item.notificationNumber || '-'}</td>
-                              <td className="p-3 text-slate-900 dark:text-white text-sm font-mono whitespace-nowrap text-center">
+                              <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text} font-mono whitespace-nowrap`}>{item.notificationNumber || '-'}</td>
+                              <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text} font-mono whitespace-nowrap text-center`}>
                                 {(() => {
                                   try {
                                     const dateVal = item.createdAt || item.date;
@@ -886,16 +934,16 @@ export const Samples = () => {
                                   }
                                 })()}
                               </td>
-                              <td className="p-3 text-center">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
+                              <td className={`${dc.cell} text-center`}>
+                                <span className={`px-2 py-0.5 rounded-full ${dc.text} font-bold border whitespace-nowrap ${item.certificateType === 'عينات بيئية'
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                     : 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20'
                                   }`}>
                                   {item.certificateType}
                                 </span>
                               </td>
-                              <td className="p-3 text-center">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border ${
+                              <td className={`${dc.cell} text-center`}>
+                                <span className={`px-2 py-0.5 rounded-full ${dc.text} font-bold whitespace-nowrap border ${
                                   item.status === 'تم إصدار شهادة'
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                                     : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
@@ -903,8 +951,8 @@ export const Samples = () => {
                                   {item.status || 'لم يتم إصدار شهادة'}
                                 </span>
                               </td>
-                              <td className="p-3 text-center">
-                                <span className="font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-white/10 px-3 py-1 rounded-xl text-base">
+                              <td className={`${dc.cell} text-center`}>
+                                <span className={`font-bold text-slate-900 dark:text-white bg-slate-200/50 dark:bg-white/10 px-2 py-0.5 rounded-lg ${dc.text}`}>
                                   {item.samples?.length || 0}
                                 </span>
                               </td>
@@ -981,8 +1029,7 @@ export const Samples = () => {
                   </div>
                 </div>
               </div>
-            );
-          })()}
+          }
         </div>
       )}
 

@@ -5,7 +5,7 @@ import {
   ShieldCheck, Info 
 } from 'lucide-react';
 import type { SampleReception } from '../store/useSampleStore';
-import { useUIStore } from '../store/useUIStore';
+import { useNavigationLock } from '../hooks/useNavigationLock';
 
 interface ReceptionDetailsModalProps {
   isOpen: boolean;
@@ -18,8 +18,18 @@ export const ReceptionDetailsModal: React.FC<ReceptionDetailsModalProps> = ({
   onClose, 
   reception 
 }) => {
-  const setLocked = useUIStore((state) => state.setLocked);
+  const { lock, unlock } = useNavigationLock();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Lock navigation only depends on isOpen
+  useEffect(() => {
+    if (isOpen) {
+      lock();
+    } else {
+      unlock();
+    }
+    return () => unlock();
+  }, [isOpen, lock, unlock]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,16 +39,14 @@ export const ReceptionDetailsModal: React.FC<ReceptionDetailsModalProps> = ({
     
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
-      setLocked(true);
       // Focus the modal for Tab support
       setTimeout(() => closeButtonRef.current?.focus(), 100);
     }
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      setLocked(false);
     };
-  }, [isOpen, onClose, setLocked]);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !reception) return null;
 

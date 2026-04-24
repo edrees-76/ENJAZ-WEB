@@ -9,6 +9,8 @@ interface UIState {
   isDark: boolean;
   toggleTheme: () => void;
   setTheme: (value: boolean) => void;
+  showNavWarning: boolean;
+  setShowNavWarning: (value: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -17,6 +19,8 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarCollapsed: (value: boolean) => set({ isSidebarCollapsed: value }),
   isLocked: false,
   setLocked: (value: boolean) => set({ isLocked: value }),
+  showNavWarning: false,
+  setShowNavWarning: (value: boolean) => set({ showNavWarning: value }),
   isDark: localStorage.getItem('theme') === 'dark',
   toggleTheme: () => {
     set((state) => {

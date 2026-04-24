@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useCertificateStore } from '../store/useCertificateStore';
 import type { Certificate } from '../store/useCertificateStore';
@@ -7,6 +7,10 @@ import CertificateDetailsModal from '../components/CertificateDetailsModal';
 import CertificateFormModal from '../components/CertificateFormModal';
 import ReceptionSearchModal from '../components/ReceptionSearchModal';
 import CertificatePrintTemplate from '../components/CertificatePrintTemplate';
+import { TableSkeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { DensityToggle, useDensity } from '../components/ui/DensityToggle';
+import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav';
 
 const Certificates = () => {
   const [searchParams] = useSearchParams();
@@ -25,6 +29,7 @@ const Certificates = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
+  const { density, setDensity, classes: dc } = useDensity();
 
   useEffect(() => {
     fetchCertificates(currentPage, itemsPerPage);
@@ -81,6 +86,25 @@ const Certificates = () => {
   const getSelectedCert = (): Certificate | null => {
     return certificates.find(c => c.id === selectedCertId) || null;
   };
+
+  const { selectedIndex, setSelectedIndex } = useTableKeyboardNav({
+    itemCount: paginatedCerts.length,
+    onSelect: (idx) => {
+      setSelectedCertId(paginatedCerts[idx].id);
+      setIsDetailsOpen(true);
+    },
+    enabled: !isDetailsOpen && !isFormModalOpen && !isSearchModalOpen && viewMode === 'list'
+  });
+
+  // Sync selectedIndex with selectedCertId when manually clicked
+  useEffect(() => {
+    if (selectedCertId === null) {
+      setSelectedIndex(null);
+    } else {
+      const idx = paginatedCerts.findIndex(c => c.id === selectedCertId);
+      if (idx !== -1) setSelectedIndex(idx);
+    }
+  }, [selectedCertId, paginatedCerts, setSelectedIndex]);
 
   const handlePrint = (cert: Certificate) => {
     window.open(`/print/certificate/${cert.id}`, '_blank');
@@ -257,68 +281,75 @@ const Certificates = () => {
       {/* ═══════════════════════════ MAIN TABLE ═══════════════════════════ */}
       <div className="glass-card rounded-[2.5rem] border border-slate-300/50 dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
 
+        {/* Density Toggle */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-200 dark:border-white/10 bg-white/40 dark:bg-white/[0.02]">
+          <span className="text-xs font-bold text-slate-400 dark:text-gray-500">عرض {paginatedCerts.length} من {totalCount} سجل</span>
+          <DensityToggle value={density} onChange={setDensity} />
+        </div>
+
         {/* Table Container with Fixed Height and Scroll */}
-        <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-2xl border border-slate-300/50 dark:border-white/10">
+        <div className="overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 rounded-b-2xl table-responsive">
           {isLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-            </div>
+            <TableSkeleton rows={10} />
           ) : (
             <table className="w-full text-right min-w-[900px] border-collapse">
               <thead className="sticky top-0 z-10 bg-gradient-to-br from-sky-500 to-sky-700 dark:from-blue-900/40 dark:to-blue-900/40 backdrop-blur-sm border-b-2 border-sky-600/50 dark:border-white/10">
-                <tr className="text-white dark:text-blue-200 text-sm font-extrabold uppercase tracking-widest">
-                  <th className="p-3 text-center w-16">ت</th>
-                  <th className="p-3 w-48 whitespace-nowrap">رقم الشهادة</th>
-                  <th className="p-3 min-w-[220px]">الجهة المرسلة</th>
-                  <th className="p-3 text-center w-32">عدد العينات</th>
-                  <th className="p-3 min-w-[200px]">المورد</th>
-                  <th className="p-3 w-40 text-center">رقم الإخطار</th>
-                  <th className="p-3 w-40 text-center">رقم الإيصال</th>
-                  <th className="p-3 text-center w-48 font-extrabold">تاريخ الإصدار</th>
+                <tr className={`text-white dark:text-blue-200 ${dc.text} font-extrabold uppercase tracking-widest`}>
+                  <th className={`${dc.cell} text-center w-12`}>ت</th>
+                  <th className={`${dc.cell} w-44 whitespace-nowrap`}>رقم الشهادة</th>
+                  <th className={`${dc.cell} min-w-[200px]`}>الجهة المرسلة</th>
+                  <th className={`${dc.cell} text-center w-24`}>العينات</th>
+                  <th className={`${dc.cell} min-w-[180px]`}>المورد</th>
+                  <th className={`${dc.cell} w-36 text-center`}>رقم الإخطار</th>
+                  <th className={`${dc.cell} w-36 text-center`}>رقم الإيصال</th>
+                  <th className={`${dc.cell} text-center w-44 font-extrabold`}>تاريخ الإصدار</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedCerts.map((cert, index) => {
-                  const isSelected = selectedCertId === cert.id;
-                  const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
+                {paginatedCerts.map((cert, idx) => {
+                  const globalIndex = (currentPage - 1) * itemsPerPage + idx + 1;
+                  const isSelected = selectedCertId === cert.id || selectedIndex === idx;
                   return (
                     <tr
                       key={cert.id}
+                      ref={selectedIndex === idx ? (el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) : null}
                       onClick={() => setSelectedCertId(cert.id)}
-                      className={`cursor-pointer transition-all duration-300 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${isSelected ? 'bg-emerald-100 dark:bg-emerald-500/20 shadow-sm border-y border-emerald-500/30' : 'border-b border-slate-100 dark:border-white/5 last:border-0'}`}
+                      className={`cursor-pointer transition-all duration-200 group hover:bg-slate-50 dark:hover:bg-white/[0.03] ${dc.row} ${isSelected ? 'bg-emerald-100/50 dark:bg-emerald-500/10 shadow-sm border-y border-emerald-500/30' : 'border-b border-slate-100 dark:border-white/5 last:border-0'}`}
                     >
-                      <td className="p-3 text-center">
+                      <td className={`${dc.cell} text-center`}>
                         <span className={`text-sm font-mono p-2 rounded-lg transition-all inline-block ${isSelected ? 'bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-200 font-bold shadow-lg scale-110' : 'bg-slate-200 text-slate-950 dark:bg-white/5 dark:text-white font-medium'}`}>
                           {globalIndex}
                         </span>
                       </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className={`px-3 py-1 rounded-xl font-black text-xs tracking-widest border border-emerald-500/10 ${cert.certificateType === 'بيئية'
+                      <td className={`${dc.cell} whitespace-nowrap`}>
+                        <span className={`px-2 py-0.5 rounded-lg font-black ${dc.text} tracking-wide border border-emerald-500/10 ${cert.certificateType === 'بيئية'
                             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                             : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                           }`}>
                           {cert.certificateNumber}
                         </span>
                       </td>
-                      <td className="p-3 text-slate-900 dark:text-white font-bold text-sm tracking-tight whitespace-nowrap">{cert.sender}</td>
-                      <td className="p-3 text-center whitespace-nowrap">
-                        <span className="bg-slate-200/50 dark:bg-white/10 text-slate-900 dark:text-white px-2 py-1 rounded-lg font-black text-xs">
+                      <td className={`${dc.cell} text-slate-900 dark:text-white font-bold ${dc.text} tracking-tight whitespace-nowrap`}>{cert.sender}</td>
+                      <td className={`${dc.cell} text-center whitespace-nowrap`}>
+                        <span className={`bg-slate-200/50 dark:bg-white/10 text-slate-900 dark:text-white px-2 py-0.5 rounded-lg font-black ${dc.text}`}>
                           {cert.sampleCount || cert.samples?.length || 0}
                         </span>
                       </td>
-                      <td className="p-3 text-slate-900 dark:text-white text-sm font-bold whitespace-nowrap">{cert.supplier || '-'}</td>
-                      <td className="p-3 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.notificationNumber || '-'}</td>
-                      <td className="p-3 text-center text-slate-900 dark:text-white text-sm font-mono tracking-tighter whitespace-nowrap">{cert.financialReceiptNumber || '-'}</td>
-                      <td className="p-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className={`${dc.cell} text-slate-900 dark:text-white ${dc.text} font-bold whitespace-nowrap`}>{cert.supplier || '-'}</td>
+                      <td className={`${dc.cell} text-center text-slate-900 dark:text-white ${dc.text} font-mono tracking-tighter whitespace-nowrap`}>{cert.notificationNumber || '-'}</td>
+                      <td className={`${dc.cell} text-center text-slate-900 dark:text-white ${dc.text} font-mono tracking-tighter whitespace-nowrap`}>{cert.financialReceiptNumber || '-'}</td>
+                      <td className={`${dc.cell} text-center whitespace-nowrap`}>
+                        <div className="flex items-center justify-center gap-1.5">
                           {cert.issueDate ? (
                             <>
-                              <span className="font-bold text-slate-900 dark:text-white text-sm">
+                              <span className={`font-bold text-slate-900 dark:text-white ${dc.text}`}>
                                 {new Date(cert.issueDate).toLocaleDateString('ar-LY', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                               </span>
-                              <span className="text-[10px] font-black text-slate-700 dark:text-gray-400 opacity-90 uppercase bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md" dir="ltr">
-                                {new Date(cert.issueDate).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                              </span>
+                              {density !== 'compact' && (
+                                <span className="text-[10px] font-black text-slate-700 dark:text-gray-400 opacity-90 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-md" dir="ltr">
+                                  {new Date(cert.issueDate).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                </span>
+                              )}
                             </>
                           ) : (
                             <span className="text-slate-900 dark:text-white opacity-50 font-bold">-</span>
@@ -330,11 +361,14 @@ const Certificates = () => {
                 })}
                 {paginatedCerts.length === 0 && !isLoading && (
                   <tr>
-                    <td colSpan={8} className="p-20 text-center">
-                      <div className="flex flex-col items-center gap-3 opacity-30">
-                        <ShieldCheck className="w-16 h-16" />
-                        <p className="text-lg font-bold text-slate-800 dark:text-white">لا توجد شهادات مطابقة</p>
-                      </div>
+                    <td colSpan={8}>
+                      <EmptyState
+                        icon={<ShieldCheck className="w-9 h-9 text-slate-400 dark:text-gray-500" />}
+                        title="لا توجد شهادات مطابقة"
+                        description={searchTerm ? `لم يتم العثور على نتائج لـ "${searchTerm}"` : 'لم يتم إصدار أي شهادات بعد.'}
+                        actionLabel={searchTerm ? 'إعادة تعيين البحث' : undefined}
+                        onAction={searchTerm ? handleReset : undefined}
+                      />
                     </td>
                   </tr>
                 )}

@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { useBlocker } from 'react-router-dom';
 import { useUIStore } from '../store/useUIStore';
 
 /**
@@ -8,6 +9,17 @@ import { useUIStore } from '../store/useUIStore';
 export const useNavigationLock = () => {
   // Use a selector to get only the setLocked function - this is stable
   const setLocked = useUIStore((state) => state.setLocked);
+  const isLocked = useUIStore((state) => state.isLocked);
+  const setShowNavWarning = useUIStore((state) => state.setShowNavWarning);
+
+  // Block react-router navigation (Back button, Links, etc.)
+  useBlocker(({ currentLocation, nextLocation }) => {
+    if (isLocked && currentLocation.pathname !== nextLocation.pathname) {
+      setShowNavWarning(true);
+      return true; // Block navigation
+    }
+    return false; // Allow navigation
+  });
 
   const lock = useCallback(() => {
     setLocked(true);
@@ -18,7 +30,17 @@ export const useNavigationLock = () => {
   }, [setLocked]);
 
   useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (useUIStore.getState().isLocked) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       setLocked(false);
     };
   }, [setLocked]);

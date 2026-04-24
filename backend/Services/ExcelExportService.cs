@@ -193,7 +193,7 @@ namespace backend.Services
             sRow += 2;
             AddSectionHeader(summarySheet, sRow, "نسب توزيع الشهادات والعينات", "#ea580c");
             sRow++;
-            var distData = new List<ChartDataPoint>
+            var distData = new List<ReportChartDataPoint>
             {
                 new() { Label = "شهادات بيئية", Value = summary.EnvironmentalCertificates },
                 new() { Label = "شهادات استهلاكية", Value = summary.ConsumableCertificates },
@@ -239,7 +239,7 @@ namespace backend.Services
         /// <summary>
         /// إضافة جدول بيانات رسم بياني (اسم + قيمة + شريط مرئي)
         /// </summary>
-        private int AddChartDataTable(IXLWorksheet sheet, int startRow, List<ChartDataPoint> data, string bgColor, string barColor)
+        private int AddChartDataTable(IXLWorksheet sheet, int startRow, List<ReportChartDataPoint> data, string bgColor, string barColor)
         {
             // عناوين الأعمدة
             var hLabel = sheet.Cell(startRow, 1);

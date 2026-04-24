@@ -85,20 +85,20 @@ namespace backend.Models
         public int EnvironmentalSamples { get; set; }
         public int ConsumableSamples { get; set; }
 
-        public List<ChartDataPoint> Timeline { get; set; } = new();
-        public List<ChartDataPoint> CertDistribution { get; set; } = new();
-        public List<ChartDataPoint> TopSuppliers { get; set; } = new();
-        public List<ChartDataPoint> TopSenders { get; set; } = new();
-        public List<ChartDataPoint> TopOrigins { get; set; } = new();
-        public List<ChartDataPoint> MonthlyPerformance { get; set; } = new();
-        public List<ChartDataPoint> SampleTypeComparison { get; set; } = new();
-        public List<ChartDataPoint> TopAnalysisTypes { get; set; } = new();
+        public List<ReportChartDataPoint> Timeline { get; set; } = new();
+        public List<ReportChartDataPoint> CertDistribution { get; set; } = new();
+        public List<ReportChartDataPoint> TopSuppliers { get; set; } = new();
+        public List<ReportChartDataPoint> TopSenders { get; set; } = new();
+        public List<ReportChartDataPoint> TopOrigins { get; set; } = new();
+        public List<ReportChartDataPoint> MonthlyPerformance { get; set; } = new();
+        public List<ReportChartDataPoint> SampleTypeComparison { get; set; } = new();
+        public List<ReportChartDataPoint> TopAnalysisTypes { get; set; } = new();
     }
 
     // ═══════════════════════════════════════════════
-    // ChartDataPoint — نقطة بيانات للرسوم البيانية
+    // ReportChartDataPoint — نقطة بيانات للرسوم البيانية
     // ═══════════════════════════════════════════════
-    public class ChartDataPoint
+    public class ReportChartDataPoint
     {
         public string Label { get; set; } = string.Empty;
         public int Value { get; set; }

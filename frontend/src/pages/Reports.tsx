@@ -12,6 +12,8 @@ import {
   Building2, Filter, ChevronLeft, ChevronRight,
   FileText as CertIcon, Beaker, Leaf, ShieldCheck, Box, Activity
 } from 'lucide-react';
+import { useToastStore } from '../store/useToastStore';
+import { TableSkeleton } from '../components/ui/Skeleton';
 
 export const Reports = () => {
   const store = useReportStore();
@@ -31,7 +33,11 @@ export const Reports = () => {
   const handleLoadReport = () => {
     if (store.reportType === 'sender' && !store.selectedSender) {
       // Must select sender for sender report
-      alert('الرجاء اختيار الجهة المرسلة أولاً لإصدار تقرير الجهات.');
+      useToastStore.getState().addToast({
+        type: 'error',
+        message: 'الرجاء اختيار الجهة المرسلة أولاً لإصدار تقرير الجهات.',
+        duration: 4000
+      });
       return;
     }
     store.fetchSummary();
@@ -429,11 +435,13 @@ export const Reports = () => {
               {store.showTable && (
                 <GlassCard className="p-6">
                   {/* Column Customizer */}
-                  <div className="mb-4">
-                    <h3 className="font-bold text-base mb-3 flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
-                      <Filter size={16} className="text-indigo-500" /> تخصيص الأعمدة
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
+                    {/* Column Customizer */}
+                    <div className="flex-1">
+                      <h3 className="font-bold text-base mb-3 flex items-center gap-2" style={{ color: 'var(--text-main)' }}>
+                        <Filter size={16} className="text-indigo-500" /> تخصيص الأعمدة
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
                       {Object.values(ReportColumn)
                         .filter((v) => typeof v === 'number' && v !== ReportColumn.AnalysisType && !(store.reportType === 'sender' && v === ReportColumn.Sender))
                         .map((col) => {
@@ -455,18 +463,37 @@ export const Reports = () => {
                             </button>
                           );
                         })}
+                      </div>
+                    </div>
+
+                    {/* Export Actions */}
+                    <div className="flex flex-row sm:flex-col gap-2 justify-end pt-8 md:pt-0">
+                      <button
+                        onClick={() => store.exportPdf()}
+                        disabled={store.exporting}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-xl font-bold text-sm transition-all shadow-sm"
+                      >
+                        {store.exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        تصدير PDF
+                      </button>
+                      <button
+                        onClick={() => store.exportExcel()}
+                        disabled={store.exporting}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-xl font-bold text-sm transition-all shadow-sm"
+                      >
+                        {store.exporting ? <Loader2 size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+                        تصدير Excel
+                      </button>
                     </div>
                   </div>
 
                   {/* Table Grid */}
                   {store.tableLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 size={32} className="text-indigo-500 animate-spin" />
-                    </div>
+                    <TableSkeleton rows={10} />
                   ) : (
                     <>
-                      <div className="overflow-x-auto rounded-xl border border-white/10">
-                        <table className="w-full text-sm">
+                      <div className="overflow-x-auto rounded-xl border border-white/10 table-responsive">
+                        <table className="w-full min-w-[900px] text-sm">
                           <thead>
                             <tr className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
                               {visibleColumns.map((col) => (

@@ -124,6 +124,11 @@ namespace backend.Data
                     .HasDatabaseName("IX_SR_Status");
                 entity.HasIndex(r => new { r.Status, r.CreatedAt })
                     .HasDatabaseName("IX_SR_Status_Created");
+
+                // Additional search indexes
+                entity.HasIndex(r => r.NotificationNumber).HasDatabaseName("IX_SR_Notification");
+                entity.HasIndex(r => r.DeclarationNumber).HasDatabaseName("IX_SR_Declaration");
+                entity.HasIndex(r => r.AnalysisRequestNumber).HasDatabaseName("IX_SR_AnalysisReq");
             });
 
             modelBuilder.Entity<Models.Certificate>(entity =>
@@ -147,6 +152,10 @@ namespace backend.Data
                 entity.HasIndex(c => c.Sender);
                 entity.HasIndex(c => new { c.CertificateType, c.IssueDate })
                     .HasDatabaseName("IX_Cert_Type_Issued");
+
+                // Additional search indexes
+                entity.HasIndex(c => c.NotificationNumber).HasDatabaseName("IX_Cert_Notification");
+                entity.HasIndex(c => c.FinancialReceiptNumber).HasDatabaseName("IX_Cert_Receipt");
             });
 
             // ═══════════════════════════════════════════════

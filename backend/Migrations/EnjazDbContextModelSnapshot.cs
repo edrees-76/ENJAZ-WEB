@@ -217,7 +217,13 @@ namespace backend.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Cert_Number");
 
+                    b.HasIndex("FinancialReceiptNumber")
+                        .HasDatabaseName("IX_Cert_Receipt");
+
                     b.HasIndex("IssueDate");
+
+                    b.HasIndex("NotificationNumber")
+                        .HasDatabaseName("IX_Cert_Notification");
 
                     b.HasIndex("SampleReceptionId");
 
@@ -504,6 +510,15 @@ namespace backend.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AnalysisRequestNumber")
+                        .HasDatabaseName("IX_SR_AnalysisReq");
+
+                    b.HasIndex("DeclarationNumber")
+                        .HasDatabaseName("IX_SR_Declaration");
+
+                    b.HasIndex("NotificationNumber")
+                        .HasDatabaseName("IX_SR_Notification");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_SR_Status");

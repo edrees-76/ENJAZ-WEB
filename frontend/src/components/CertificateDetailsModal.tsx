@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, FileText, Share2, Building2, Globe2, ListChecks, Hash, ShieldCheck, Beaker, Printer, Package, ClipboardCheck } from 'lucide-react';
 import type { Certificate } from '../store/useCertificateStore';
-import { useUIStore } from '../store/useUIStore';
+import { useNavigationLock } from '../hooks/useNavigationLock';
 
 interface CertificateDetailsModalProps {
   isOpen: boolean;
@@ -10,7 +10,17 @@ interface CertificateDetailsModalProps {
 }
 
 const CertificateDetailsModal: React.FC<CertificateDetailsModalProps> = ({ isOpen, onClose, certificate }) => {
-  const setLocked = useUIStore((state) => state.setLocked);
+  const { lock, unlock } = useNavigationLock();
+
+  // Lock navigation only depends on isOpen
+  React.useEffect(() => {
+    if (isOpen) {
+      lock();
+    } else {
+      unlock();
+    }
+    return () => unlock();
+  }, [isOpen, lock, unlock]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -18,13 +28,11 @@ const CertificateDetailsModal: React.FC<CertificateDetailsModalProps> = ({ isOpe
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
-      setLocked(true);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      setLocked(false);
     };
-  }, [isOpen, onClose, setLocked]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

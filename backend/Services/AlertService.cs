@@ -143,6 +143,7 @@ namespace backend.Services
                             };
 
                             _db.Alerts.Add(newAlert);
+                            await _db.SaveChangesAsync(); // حفظ للحصول على المعرف (Id)
 
                             // ربط التنبيه بجميع المستخدمين النشطين
                             var users = await _db.Users.Where(u => u.IsActive).ToListAsync();
@@ -150,7 +151,7 @@ namespace backend.Services
                             _db.UserAlerts.AddRange(users.Select(u => new UserAlert
                             {
                                 UserId = u.Id,
-                                AlertId = newAlert.Id
+                                AlertId = newAlert.Id // الآن AlertId سيكون صحيحاً
                             }));
 
                             await _db.SaveChangesAsync();

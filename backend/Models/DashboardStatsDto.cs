@@ -15,13 +15,13 @@ namespace backend.Models
         public int CertificatesEnvironmental { get; set; }
         public int CertificatesConsumable { get; set; }
         
-        public List<MonthlyStat> MonthlySamples { get; set; } = new List<MonthlyStat>();
-        public List<MonthlyStat> MonthlyCertificates { get; set; } = new List<MonthlyStat>();
+        public List<ChartDataPoint> ChartSamples { get; set; } = new List<ChartDataPoint>();
+        public List<ChartDataPoint> ChartCertificates { get; set; } = new List<ChartDataPoint>();
     }
 
-    public class MonthlyStat
+    public class ChartDataPoint
     {
-        public string Month { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
         public int Environmental { get; set; }
         public int Consumable { get; set; }
     }

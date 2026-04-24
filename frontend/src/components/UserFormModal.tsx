@@ -3,6 +3,8 @@ import { X, User, Shield, Key, Save, Loader2, CheckCircle, AlertCircle } from 'l
 import { useUsersStore, type UserDto, type CreateUserDto, type UpdateUserDto } from '../store/useUsersStore';
 import { Permission } from '../store/useAuthStore';
 import { useUIStore } from '../store/useUIStore';
+import { useToastStore } from '../store/useToastStore';
+import { useNavigationLock } from '../hooks/useNavigationLock';
 
 interface Props {
   user: UserDto | null; // null = إضافة جديد
@@ -26,13 +28,16 @@ const permissionsList = [
 
 export const UserFormModal = ({ user, onClose }: Props) => {
   const { createUser, updateUser, checkUsername } = useUsersStore();
-  const { isDark, setLocked } = useUIStore();
+  const { isDark } = useUIStore();
+  const { lock, unlock } = useNavigationLock();
+  const { addToast } = useToastStore();
   const isEditing = !!user;
 
+  // Lock navigation only depends on component lifecycle
   useEffect(() => {
-    setLocked(true);
-    return () => setLocked(false);
-  }, [setLocked]);
+    lock();
+    return () => unlock();
+  }, [lock, unlock]);
 
   // Form state
   const [fullName, setFullName] = useState(user?.fullName || '');
@@ -106,6 +111,7 @@ export const UserFormModal = ({ user, onClose }: Props) => {
       };
       const result = await updateUser(user!.id, dto);
       if (!result.success) {
+        // error is handled by interceptor, but keep local state just in case
         setError(result.error || 'حدث خطأ');
         setIsSubmitting(false);
         return;
@@ -128,6 +134,10 @@ export const UserFormModal = ({ user, onClose }: Props) => {
       }
     }
 
+    addToast({
+      type: 'success',
+      message: isEditing ? 'تم تحديث بيانات المستخدم بنجاح' : 'تم إنشاء المستخدم بنجاح'
+    });
     setSuccess(true);
     setTimeout(onClose, 800);
   };
@@ -365,13 +375,6 @@ export const UserFormModal = ({ user, onClose }: Props) => {
           {error && (
             <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-sm font-bold text-center">
               {error}
-            </div>
-          )}
-
-          {/* Success */}
-          {success && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-sm font-bold text-center">
-              ✅ تم الحفظ بنجاح
             </div>
           )}
 

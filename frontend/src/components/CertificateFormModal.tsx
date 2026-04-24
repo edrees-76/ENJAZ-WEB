@@ -3,6 +3,8 @@ import { X, Save, AlertCircle, ShieldCheck, Beaker, Package, ClipboardCheck, His
 import { useCertificateStore } from '../store/useCertificateStore';
 import { useSampleStore } from '../store/useSampleStore';
 import { useUIStore } from '../store/useUIStore';
+import { useToastStore } from '../store/useToastStore';
+import { useNavigationLock } from '../hooks/useNavigationLock';
 import type { Certificate, CertificateSample } from '../store/useCertificateStore';
 
 const toUTCDateString = () => {
@@ -24,7 +26,7 @@ interface CertificateFormModalProps {
 }
 
 const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onClose, certificate, linkedReceptionId, isFullScreen }) => {
-  const setLocked = useUIStore((state) => state.setLocked);
+  const { lock, unlock } = useNavigationLock();
   const [showConfirmClose, setShowConfirmClose] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
 
@@ -36,19 +38,28 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     }
   };
 
+  // 1. Lock effect - only depends on isOpen
+  useEffect(() => {
+    if (isOpen) {
+      lock();
+    } else {
+      unlock();
+    }
+    return () => unlock();
+  }, [isOpen, lock, unlock]);
+
+  // 2. Keyboard effect - depends on isDirty via handleSafeClose
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleSafeClose();
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
-      setLocked(true);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      setLocked(false);
     };
-  }, [isOpen, onClose, setLocked, isDirty]);
+  }, [isOpen, isDirty]);
 
   // Reset dirty/confirm state when modal opens/closes
   useEffect(() => {
@@ -59,10 +70,9 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     }
   }, [isOpen]);
 
-  const { createCertificate, updateCertificate, isLoading, error: storeError, clearError } = useCertificateStore();
+  const { createCertificate, updateCertificate, isLoading, clearError } = useCertificateStore();
   const { receptions } = useSampleStore();
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { addToast } = useToastStore();
   
   const [formData, setFormData] = useState<Partial<Certificate>>({
     certificateType: '',
@@ -177,11 +187,11 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<Set<string>>(new Set());
+  const [formErrors, setFormErrors] = useState<string[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return; // Prevent double-click
-    setValidationError(null);
 
     // Accumulate all errors
     const errors: string[] = [];
@@ -262,7 +272,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     }
 
     if (errors.length > 0) {
-      setValidationError(errors.join('\n\n'));
+      setFormErrors(errors);
       return;
     }
 
@@ -293,15 +303,18 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     setIsSubmitting(false);
     if (success) {
       if (newCertId === -1) {
-        setSuccessMessage('الإنترنت غير متصل حالياً. تم حفظ بيانات الشهادة محلياً في جهازك وسيتم مزامنتها مع الخادم تلقائياً فور عودة الاتصال.');
+        addToast({
+          type: 'info',
+          message: 'الإنترنت غير متصل. تم حفظ بيانات الشهادة محلياً.',
+          duration: 6000
+        });
         
         // Remove draft upon successful queue
         import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-cert-new'));
 
         setTimeout(() => {
-           setSuccessMessage(null);
            onClose();
-        }, 5000);
+        }, 1000);
       } else {
         // Remove draft upon successful save
         import('../lib/db').then(({ deleteDraft }) => deleteDraft('draft-cert-new'));
@@ -309,7 +322,16 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
         
         // Open the print page automatically for newly created certificates
         if (newCertId) {
+          addToast({
+            type: 'success',
+            message: 'تم إصدار الشهادة بنجاح'
+          });
           window.open(`/print/certificate/${newCertId}?pdf=true`, '_blank');
+        } else if (certificate?.id) {
+          addToast({
+            type: 'success',
+            message: 'تم تحديث الشهادة بنجاح'
+          });
         }
       }
     }
@@ -348,19 +370,6 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
       {/* Form Body */}
       <div className={`p-10 ${isFullScreen ? '' : 'overflow-y-auto custom-scrollbar'} flex-1 relative`}>
         
-        {/* Success Message for Offline Queue */}
-        {successMessage && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
-            <div className="p-2 bg-emerald-100 rounded-lg shrink-0">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <h4 className="font-bold text-emerald-800">تم الحفظ محلياً بنجاح</h4>
-              <p className="text-emerald-700 text-sm mt-1">{successMessage}</p>
-            </div>
-          </div>
-        )}
-        
         {/* Unsaved Changes Confirmation Modal */}
         {showConfirmClose && (
           <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
@@ -391,28 +400,23 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
           </div>
         )}
 
-        {(validationError || storeError) && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 max-w-md w-full border border-red-100 dark:border-red-900/30 animate-in zoom-in-95 duration-300">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-4 bg-red-100 dark:bg-red-500/20 rounded-full text-red-500">
-                  <AlertCircle className="w-10 h-10"/>
-                </div>
-                <div>
-                  <h3 className="text-red-600 dark:text-red-400 font-black text-xl mb-3">
-                    {validationError ? 'تنبيه: بيانات غير مكتملة' : 'خطأ في معالجة الطلب'}
-                  </h3>
-                  <div className="text-sm text-slate-600 dark:text-slate-300 font-bold whitespace-pre-wrap leading-relaxed">
-                    {validationError || storeError}
-                  </div>
-                </div>
-                <button
-                  onClick={() => { setValidationError(null); clearError(); }}
-                  className="w-full mt-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-lg transition-all active:scale-95 shadow-lg shadow-red-500/20"
-                >
-                  حسناً، فهمت
-                </button>
+        {/* Validation Errors Modal */}
+        {formErrors.length > 0 && (
+          <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="glass-card p-8 rounded-[2rem] w-full max-w-md border-2 border-red-500/30 text-center animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+                <AlertCircle className="w-8 h-8 text-red-500" />
               </div>
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">يوجد نقص في البيانات المطلوبة</h3>
+              <div className="text-right text-slate-600 dark:text-gray-300 mb-8 max-h-60 overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl whitespace-pre-line text-sm leading-relaxed border border-slate-200 dark:border-white/5">
+                {formErrors.join('\n\n')}
+              </div>
+              <button
+                onClick={() => setFormErrors([])}
+                className="w-full py-3 bg-slate-800 dark:bg-white/10 hover:bg-slate-900 dark:hover:bg-white/20 text-white rounded-xl font-bold transition-all active:scale-95 shadow-xl"
+              >
+                حسناً، سأقوم بالتصحيح
+              </button>
             </div>
           </div>
         )}

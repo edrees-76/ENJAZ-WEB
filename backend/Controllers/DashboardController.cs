@@ -5,6 +5,8 @@ using backend.Models;
 using Asp.Versioning;
 using Microsoft.Extensions.Logging;
 
+using backend.Services;
+
 namespace backend.Controllers
 {
     [Authorize]
@@ -13,125 +15,22 @@ namespace backend.Controllers
     [ApiController]
     public class DashboardController : ControllerBase
     {
-        private readonly Data.EnjazDbContext _context;
+        private readonly IDashboardService _dashboardService;
         private readonly ILogger<DashboardController> _logger;
 
-        public DashboardController(Data.EnjazDbContext context, ILogger<DashboardController> logger)
+        public DashboardController(IDashboardService dashboardService, ILogger<DashboardController> logger)
         {
-            _context = context;
+            _dashboardService = dashboardService;
             _logger = logger;
         }
 
         [HttpGet("stats")]
-        public async Task<IActionResult> GetStats()
+        public async Task<IActionResult> GetStats([FromQuery] string period = "year", [FromQuery] string timezone = "UTC", [FromQuery] int? year = null)
         {
             try 
             {
-                var today = DateTime.UtcNow.Date;
-                var twelveMonthsAgo = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-11);
-
-                // Basic Sample Stats (Counting actual samples, not just receptions)
-                var totalSamples = await _context.ReceptionSamples.CountAsync();
-                var samplesToday = await _context.ReceptionSamples
-                    .CountAsync(s => s.SampleReception != null && s.SampleReception.Date.Date == today);
-                
-                var samplesEnv = await _context.SampleReceptions
-                    .Where(s => s.CertificateType.Contains("بيئية"))
-                    .SelectMany(r => r.Samples)
-                    .CountAsync();
-                    
-                var samplesCons = await _context.SampleReceptions
-                    .Where(s => s.CertificateType.Contains("استهلاكية"))
-                    .SelectMany(r => r.Samples)
-                    .CountAsync();
-
-                // Basic Certificate Stats
-                var certQuery = _context.Certificates.AsQueryable();
-                var totalCerts = await certQuery.CountAsync();
-                var certsToday = await certQuery.CountAsync(c => c.IssueDate.Date == today);
-                var certsEnv = await certQuery.CountAsync(c => c.CertificateType.Contains("بيئية"));
-                var certsCons = await certQuery.CountAsync(c => c.CertificateType.Contains("استهلاكية"));
-
-                // Monthly Samples (Based on Reception Date)
-                var monthlySamplesQuery = _context.SampleReceptions
-                    .Where(s => s.Date >= twelveMonthsAgo)
-                    .SelectMany(s => s.Samples, (reception, sample) => new 
-                    {
-                        reception.Date,
-                        reception.CertificateType
-                    });
-
-                var monthlySamplesData = await monthlySamplesQuery.ToListAsync();
-
-                var monthlySamples = monthlySamplesData
-                    .GroupBy(x => new { x.Date.Year, x.Date.Month })
-                    .Select(g => new
-                    {
-                        Year = g.Key.Year,
-                        Month = g.Key.Month,
-                        Env = g.Count(x => x.CertificateType.Contains("بيئية")),
-                        Cons = g.Count(x => x.CertificateType.Contains("استهلاكية"))
-                    })
-                    .ToList();
-
-                // Monthly Certificates (Based on Issue Date)
-                var monthlyCertsData = await _context.Certificates
-                    .Where(c => c.IssueDate >= twelveMonthsAgo)
-                    .Select(c => new { c.IssueDate, c.CertificateType })
-                    .ToListAsync();
-
-                var monthlyCerts = monthlyCertsData
-                    .GroupBy(c => new { c.IssueDate.Year, c.IssueDate.Month })
-                    .Select(g => new
-                    {
-                        Year = g.Key.Year,
-                        Month = g.Key.Month,
-                        Env = g.Count(c => c.CertificateType.Contains("بيئية")),
-                        Cons = g.Count(c => c.CertificateType.Contains("استهلاكية"))
-                    })
-                    .ToList();
-
-                // Format Monthly Stats for Frontend
-                var monthsMap = new string[] { "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر" };
-                
-                var formattedMonthlySamples = new List<MonthlyStat>();
-                var formattedMonthlyCerts = new List<MonthlyStat>();
-
-                for (int i = 0; i < 12; i++)
-                {
-                    var targetMonth = twelveMonthsAgo.AddMonths(i);
-                    var monthLabel = monthsMap[targetMonth.Month - 1];
-
-                    var sampleStat = monthlySamples.FirstOrDefault(ms => ms.Year == targetMonth.Year && ms.Month == targetMonth.Month);
-                    formattedMonthlySamples.Add(new MonthlyStat
-                    {
-                        Month = monthLabel,
-                        Environmental = sampleStat?.Env ?? 0,
-                        Consumable = sampleStat?.Cons ?? 0
-                    });
-
-                    var certStat = monthlyCerts.FirstOrDefault(mc => mc.Year == targetMonth.Year && mc.Month == targetMonth.Month);
-                    formattedMonthlyCerts.Add(new MonthlyStat
-                    {
-                        Month = monthLabel,
-                        Environmental = certStat?.Env ?? 0,
-                        Consumable = certStat?.Cons ?? 0
-                    });
-                }
-
-                return Ok(new DashboardStatsDto
-                {
-                    TotalSamples = totalSamples,
-                    SamplesToday = samplesToday,
-                    SamplesEnvironmental = samplesEnv,
-                    SamplesConsumable = samplesCons,
-                    TotalCertificates = totalCerts,
-                    CertificatesToday = certsToday,
-                    CertificatesEnvironmental = certsEnv,
-                    CertificatesConsumable = certsCons,
-                    MonthlySamples = formattedMonthlySamples,
-                    MonthlyCertificates = formattedMonthlyCerts
-                });
+                var result = await _dashboardService.GetStatsAsync(period, timezone, year);
+                return Ok(result);
             }
             catch (Exception ex)
             {

@@ -129,6 +129,7 @@ try
     builder.Services.AddScoped<ExcelExportService>();
     builder.Services.AddScoped<PdfExportService>();
     builder.Services.AddScoped<ReferralPdfService>();
+    builder.Services.AddScoped<IDashboardService, DashboardService>();
 
     // User Management services
     builder.Services.AddSingleton<PasswordService>();

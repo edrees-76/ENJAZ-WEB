@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, CheckSquare, Hash, FileSearch } from 'lucide-react';
 import { useSampleStore } from '../store/useSampleStore';
 import { useUIStore } from '../store/useUIStore';
+import { useNavigationLock } from '../hooks/useNavigationLock';
 
 interface ReceptionSearchModalProps {
   isOpen: boolean;
@@ -16,9 +17,19 @@ export default function ReceptionSearchModal({ isOpen, onClose, onSelect }: Rece
   
   const receptions = useSampleStore((state) => state.receptions);
   const fetchReceptions = useSampleStore((state) => state.fetchReceptions);
-  const setLocked = useUIStore((state) => state.setLocked);
+  const { lock, unlock } = useNavigationLock();
 
-  // Effect for Keyboard bindings and UI Locking
+  // Lock navigation only depends on isOpen
+  useEffect(() => {
+    if (isOpen) {
+      lock();
+    } else {
+      unlock();
+    }
+    return () => unlock();
+  }, [isOpen, lock, unlock]);
+
+  // Effect for Keyboard bindings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -27,14 +38,12 @@ export default function ReceptionSearchModal({ isOpen, onClose, onSelect }: Rece
 
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
-      setLocked(true); // Lock sidebar navigation
     }
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      setLocked(false); // Unlock sidebar navigation
     };
-  }, [isOpen, selectedId, onClose, onSelect, setLocked]);
+  }, [isOpen, selectedId, onClose, onSelect]);
 
   // Effect strictly for initializing modal state when it OPENS
   useEffect(() => {

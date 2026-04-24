@@ -46,7 +46,7 @@ async function scheduleNextTick() {
   timeoutId = setTimeout(scheduleNextTick, 2000);
 }
 
-async function processQueue() {
+export async function processQueue() {
   // Only the leader tab is allowed to execute the queue
   if (!checkIfLeader()) {
     return;

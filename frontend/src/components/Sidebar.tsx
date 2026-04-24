@@ -26,15 +26,14 @@ export const Sidebar = () => {
 
   const user = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
-  const { isSidebarCollapsed, toggleSidebar, isLocked, isDark, toggleTheme } = useUIStore();
+  const { isSidebarCollapsed, toggleSidebar, isLocked, isDark, toggleTheme, showNavWarning, setShowNavWarning } = useUIStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showNavigationBlocked, setShowNavigationBlocked] = useState(false);
 
   const attemptNavigation = (path: string) => {
     if (isLocked) {
-      setShowNavigationBlocked(true);
+      setShowNavWarning(true);
     } else {
       navigate(path);
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -45,7 +44,7 @@ export const Sidebar = () => {
 
   const handleLogout = () => {
     if (isLocked) {
-      setShowNavigationBlocked(true);
+      setShowNavWarning(true);
     } else {
       setShowLogoutConfirm(true);
     }
@@ -227,7 +226,7 @@ export const Sidebar = () => {
     )}
 
     {/* Navigation Blocked Warning Modal */}
-    {showNavigationBlocked && (
+    {showNavWarning && (
       <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
         <div className="bg-white/95 dark:bg-slate-900/95 max-w-sm w-full p-8 rounded-[2.5rem] border-2 border-slate-300 dark:border-amber-500/30 shadow-2xl text-center scale-in-center animate-in zoom-in-95 duration-300">
           <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -238,7 +237,7 @@ export const Sidebar = () => {
             يجب إنهاء الإجراء الحالي أو إغلاق النافذة المفتوحة قبل الانتقال إلى قسم آخر.
           </p>
           <button
-            onClick={() => setShowNavigationBlocked(false)}
+            onClick={() => setShowNavWarning(false)}
             data-esc-close="true"
             className="w-full py-4 bg-slate-800 hover:bg-slate-900 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-white dark:text-amber-500 rounded-2xl font-bold transition-all shadow-xl active:scale-95"
           >

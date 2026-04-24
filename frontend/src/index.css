@@ -9,6 +9,8 @@
   
   --color-primary-soft: #3b82f6; 
   --color-secondary-soft: #8b5cf6;
+
+  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
 }
 
 :root {
@@ -77,6 +79,11 @@
 
 .logo-3d-active {
     animation: logo-hover 4s infinite ease-in-out;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 /* --- LUXURY THEME SWITCH --- */
@@ -160,4 +167,32 @@
   top: 0;
   z-index: 10;
   background-clip: padding-box;
+}
+
+/* ═══ Responsive Table Horizontal Scroll ═══ */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ═══ Dark Mode Table Contrast Improvements ═══ */
+.dark table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dark table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.06) !important;
+}
+
+.dark table th {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark table td {
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ═══ Dark Mode Dialog & Modal Contrast ═══ */
+.dark .glass-card {
+  border-color: rgba(255, 255, 255, 0.08);
 }
