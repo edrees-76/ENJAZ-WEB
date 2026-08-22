@@ -30,6 +30,11 @@ generate_test_certs.js
 Thumbs.db
 Desktop.ini
 
+# Logs
+logs/
+*.log
+backend/logs/
+
 # Antigravity
 .antigravityignore
 .testsprite/
