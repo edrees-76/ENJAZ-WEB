@@ -13,6 +13,27 @@ interface UIState {
   setShowNavWarning: (value: boolean) => void;
 }
 
+const getInitialTheme = (): boolean => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem('theme') === 'dark';
+    }
+  } catch {
+    // fallback
+  }
+  return false;
+};
+
+const safeSetItem = (key: string, value: string) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    // ignore
+  }
+};
+
 export const useUIStore = create<UIState>((set) => ({
   isSidebarCollapsed: typeof window !== 'undefined' ? window.innerWidth < 768 : false,
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
@@ -21,25 +42,29 @@ export const useUIStore = create<UIState>((set) => ({
   setLocked: (value: boolean) => set({ isLocked: value }),
   showNavWarning: false,
   setShowNavWarning: (value: boolean) => set({ showNavWarning: value }),
-  isDark: localStorage.getItem('theme') === 'dark',
+  isDark: getInitialTheme(),
   toggleTheme: () => {
     set((state) => {
       const newValue = !state.isDark;
-      localStorage.setItem('theme', newValue ? 'dark' : 'light');
-      if (newValue) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
+      safeSetItem('theme', newValue ? 'dark' : 'light');
+      if (typeof document !== 'undefined') {
+        if (newValue) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
       }
       return { isDark: newValue };
     });
   },
   setTheme: (value: boolean) => {
-    localStorage.setItem('theme', value ? 'dark' : 'light');
-    if (value) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    safeSetItem('theme', value ? 'dark' : 'light');
+    if (typeof document !== 'undefined') {
+      if (value) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
     set({ isDark: value });
   }
