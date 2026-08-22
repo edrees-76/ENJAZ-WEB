@@ -115,7 +115,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build Docker Image
-        run: docker build -t enjaz-api:${{ github.sha }} -f backend/Dockerfile backend/
+        run: docker build -t enjaz-api:${{ github.sha }} -f Dockerfile .
 
       - name: Tag Latest
         run: docker tag enjaz-api:${{ github.sha }} enjaz-api:latest
