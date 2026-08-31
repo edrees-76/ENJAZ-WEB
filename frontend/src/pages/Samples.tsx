@@ -14,7 +14,10 @@ import {
   Activity,
   Leaf,
   Lock,
-  Save
+  Save,
+  CheckCircle2,
+  AlertTriangle,
+  History
 } from 'lucide-react';
 import { useSampleStore } from '../store/useSampleStore';
 import { useNavigationLock } from '../hooks/useNavigationLock';
@@ -25,6 +28,8 @@ import { TableSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DensityToggle, useDensity } from '../components/ui/DensityToggle';
 import { useTableKeyboardNav } from '../hooks/useTableKeyboardNav';
+import { sampleValidationService, SampleCheckResult, type SampleUniquenessResult } from '../services/sampleValidationService';
+import { STANDARD_SENDERS } from '../data/senders';
 
 const toLocalDateString = () => {
   const d = new Date();
@@ -64,18 +69,88 @@ export const Samples = () => {
     date: toLocalDateString(),
   });
 
-  const senderOptions = [
-    "مركز الرقابة على الأغذية والأدوية - بنغازي",
-    "مركز الرقابة على الأغذية والأدوية - البطنان",
-    "مركز الرقابة على الأغذية والأدوية - مصراتة",
-    "مركز الرقابة على الأغذية والأدوية - الخمس",
-    "مركز الرقابة على الأغذية والأدوية - طرابلس",
-    "مركز الرقابة على الأغذية والأدوية - زوارة"
-  ];
+  const senderOptions = STANDARD_SENDERS;
 
   // Individual Samples in the Grid
   const [currentSamples, setCurrentSamples] = useState<{ sampleNumber: string, description: string, root: string }[]>([]);
   const [newSample, setNewSample] = useState({ sampleNumber: '', description: '', root: '' });
+  const [newSampleValidation, setNewSampleValidation] = useState<SampleUniquenessResult | null>(null);
+  const [isValidatingNewSample, setIsValidatingNewSample] = useState(false);
+  const [batchValidationMap, setBatchValidationMap] = useState<Record<number, SampleUniquenessResult>>({});
+  const [isValidatingBatch, setIsValidatingBatch] = useState(false);
+
+  // Real-time debounce validation for newSample
+  useEffect(() => {
+    if (!newSample.sampleNumber.trim()) {
+      setNewSampleValidation(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const year = formData.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+      setIsValidatingNewSample(true);
+      try {
+        const res = await sampleValidationService.checkSample({
+          sampleNumber: newSample.sampleNumber,
+          year,
+          sender: formData.sender
+        }, controller.signal);
+        setNewSampleValidation(res);
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
+          console.error('Validation error', err);
+        }
+      } finally {
+        setIsValidatingNewSample(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [newSample.sampleNumber, formData.sender, formData.date]);
+
+  // Real-time batch validation for currentSamples
+  useEffect(() => {
+    if (currentSamples.length === 0) {
+      setBatchValidationMap({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const year = formData.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+      setIsValidatingBatch(true);
+      try {
+        const res = await sampleValidationService.checkBatch({
+          sampleNumbers: currentSamples.map(s => s.sampleNumber),
+          year,
+          sender: formData.sender
+        }, controller.signal);
+
+        const map: Record<number, SampleUniquenessResult> = {};
+        res.results.forEach((r, idx) => {
+          map[idx] = r;
+        });
+        setBatchValidationMap(map);
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
+          console.error('Batch validation error', err);
+        }
+      } finally {
+        setIsValidatingBatch(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [currentSamples, formData.sender, formData.date]);
 
   const isFormDirty = 
     formData.analysisRequestNumber !== '' ||
@@ -189,10 +264,48 @@ export const Samples = () => {
   }, [showAddForm, lock, unlock]);
 
   const handleAddSample = () => {
-    if (newSample.sampleNumber && newSample.description) {
-      setCurrentSamples([...currentSamples, newSample]);
-      setNewSample({ sampleNumber: '', description: '', root: '' });
+    if (!newSample.sampleNumber || !newSample.description) {
+      addToast({
+        type: 'error',
+        message: 'يرجى إدخال رقم العينة وبيانها أولاً',
+      });
+      return;
     }
+
+    const rawTrimmed = newSample.sampleNumber.trim();
+
+    // 1. Check if already in currentSamples
+    const isAlreadyInList = currentSamples.some(
+      s => s.sampleNumber.trim().replace(/^0+/, '') === rawTrimmed.replace(/^0+/, '')
+    );
+    if (isAlreadyInList) {
+      addToast({
+        type: 'error',
+        message: `العينة رقم (${rawTrimmed}) مكررة داخل القائمة الحالية.`,
+      });
+      return;
+    }
+
+    // 2. Check active uniqueness status
+    if (newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload) {
+      addToast({
+        type: 'error',
+        message: newSampleValidation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
+      });
+      return;
+    }
+
+    if (newSampleValidation?.status === SampleCheckResult.FoundInDeleted) {
+      addToast({
+        type: 'info',
+        message: `تنبيه: العينة (${rawTrimmed}) كانت محذوفة سابقاً وتمت إضافتها.`,
+        duration: 5000
+      });
+    }
+
+    setCurrentSamples([...currentSamples, newSample]);
+    setNewSample({ sampleNumber: '', description: '', root: '' });
+    setNewSampleValidation(null);
   };
 
   const handleRemoveSample = (index: number) => {
@@ -218,6 +331,7 @@ export const Samples = () => {
     });
     setCurrentSamples([]);
     setNewSample({ sampleNumber: '', description: '', root: '' });
+    setNewSampleValidation(null);
     setFormErrors([]);
     setIsManualSender(false);
     setShowCancelConfirm(false);
@@ -247,11 +361,28 @@ export const Samples = () => {
     if (!formData.declarationNumber) missingFields.push("رقم الإقرار الجمركي");
     if (!formData.policyNumber) missingFields.push("رقم بوليصة الشحن");
 
-
     if (missingFields.length > 0) {
       setFormErrors(missingFields);
       // Scroll to error message
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (currentSamples.length === 0) {
+      setFormErrors(["يجب إضافة عينة واحدة على الأقل في القائمة"]);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Check for any duplicate active samples in batch map
+    const hasAnyDuplicate = Object.values(batchValidationMap).some(
+      v => v.status === SampleCheckResult.DuplicateActive || v.status === SampleCheckResult.DuplicateInPayload
+    );
+    if (hasAnyDuplicate) {
+      addToast({
+        type: 'error',
+        message: 'لا يمكن حفظ الاستلام لوجود عينات مكررة في القائمة.',
+      });
       return;
     }
 
@@ -652,22 +783,57 @@ export const Samples = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row items-end gap-16 mb-12">
-                <div className="flex-[1] space-y-3">
-                  <label className="text-sm font-bold text-slate-600 dark:text-gray-400 block mr-1">رقم العينة</label>
+              <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
+                <div className="flex-[1] space-y-2 w-full">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-slate-600 dark:text-gray-400 block mr-1">رقم العينة</label>
+                    {isValidatingNewSample && (
+                      <span className="text-[10px] text-indigo-500 animate-pulse font-medium">جاري الفحص...</span>
+                    )}
+                  </div>
                   <div className="glass-card-subtle p-1 rounded-2xl border border-slate-300 dark:border-white/10 shadow-sm">
                     <input
                       type="text"
                       value={newSample.sampleNumber}
                       onChange={(e) => setNewSample({ ...newSample, sampleNumber: e.target.value })}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddSample()}
-                      className="w-full bg-slate-50/50 dark:bg-white/5 rounded-xl px-4 py-4 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-center font-mono text-lg"
-                      placeholder=""
+                      className={`w-full bg-slate-50/50 dark:bg-white/5 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 transition-all text-center font-mono text-lg font-bold ${
+                        newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload
+                          ? 'border-red-500 ring-2 ring-red-500/20 text-red-600 dark:text-red-400'
+                          : newSampleValidation?.status === SampleCheckResult.FoundInDeleted
+                          ? 'border-amber-500 ring-2 ring-amber-500/20 text-amber-600 dark:text-amber-400'
+                          : newSampleValidation?.status === SampleCheckResult.Unique && newSample.sampleNumber
+                          ? 'border-emerald-500/50'
+                          : 'focus:ring-emerald-500/30'
+                      }`}
+                      placeholder="رقم العينة"
                     />
                   </div>
+                  {newSample.sampleNumber && newSampleValidation && (
+                    <div className="text-xs font-bold mr-1">
+                      {(newSampleValidation.status === SampleCheckResult.DuplicateActive || newSampleValidation.status === SampleCheckResult.DuplicateInPayload) && (
+                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400" title={newSampleValidation.message}>
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          مكرر ومسجل مسبقاً
+                        </span>
+                      )}
+                      {newSampleValidation.status === SampleCheckResult.FoundInDeleted && (
+                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title={newSampleValidation.message}>
+                          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                          كان محذوفاً سابقاً
+                        </span>
+                      )}
+                      {newSampleValidation.status === SampleCheckResult.Unique && (
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          متاح وفريد
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex-[3] space-y-3">
+                <div className="flex-[3] space-y-2 w-full">
                   <label className="text-sm font-bold text-slate-600 dark:text-gray-400 block mr-1">الوصف / بيان العينة</label>
                   <div className="glass-card-subtle p-1 rounded-2xl border border-slate-300 dark:border-white/10 shadow-sm">
                     <input
@@ -675,19 +841,22 @@ export const Samples = () => {
                       value={newSample.description}
                       onChange={(e) => setNewSample({ ...newSample, description: e.target.value })}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddSample()}
-                      className="w-full bg-slate-50/50 dark:bg-white/5 rounded-xl px-4 py-4 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-lg"
-                      placeholder=""
+                      className="w-full bg-slate-50/50 dark:bg-white/5 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all text-lg"
+                      placeholder="وصف وبيان العينة"
                     />
                   </div>
                 </div>
 
-                <button
-                  onClick={handleAddSample}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-10 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-500/10"
-                >
-                  <Plus className="w-4 h-4" />
-                  إضافة عينة
-                </button>
+                <div className="pt-7 w-full md:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleAddSample}
+                    className="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-500/10"
+                  >
+                    <Plus className="w-5 h-5" />
+                    إضافة عينة
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-300 dark:border-white/5">
@@ -695,7 +864,7 @@ export const Samples = () => {
                   <thead>
                     <tr className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
                       <th className="px-4 py-3 text-center w-20">م</th>
-                      <th className="px-4 py-3 text-center">رقم العينة</th>
+                      <th className="px-4 py-3 text-center min-w-[150px]">رقم العينة</th>
                       <th className="px-4 py-3 text-right">وصف العينة</th>
                       <th className="px-4 py-3 text-center w-28">إجراءات</th>
                     </tr>
@@ -708,14 +877,34 @@ export const Samples = () => {
                         </td>
                       </tr>
                     ) : (
-                      currentSamples.map((sample, index) => (
-                        <tr key={index} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-all duration-200 group border-b border-slate-200 dark:border-white/5 last:border-0 text-sm">
+                      currentSamples.map((sample, index) => {
+                        const batchRes = batchValidationMap[index];
+                        const isDup = batchRes?.status === SampleCheckResult.DuplicateActive || batchRes?.status === SampleCheckResult.DuplicateInPayload;
+                        const isDeleted = batchRes?.status === SampleCheckResult.FoundInDeleted;
+
+                        return (
+                        <tr key={index} className={`transition-all duration-200 group border-b border-slate-200 dark:border-white/5 last:border-0 text-sm ${isDup ? 'bg-red-500/5' : isDeleted ? 'bg-amber-500/5' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}>
                           <td className="px-4 py-3 text-center text-cyan-600 dark:text-cyan-500 font-bold font-mono">{index + 1}</td>
-                          <td className="px-4 py-3 text-center text-slate-800 dark:text-white font-mono">{sample.sampleNumber}</td>
+                          <td className="px-4 py-3 text-center font-mono">
+                            <div className="inline-flex flex-col items-center">
+                              <span className={`font-bold ${isDup ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-white'}`}>{sample.sampleNumber}</span>
+                              {isDup && (
+                                <span className="text-[10px] text-red-500 font-sans flex items-center gap-0.5" title={batchRes?.message}>
+                                  <AlertCircle className="w-3 h-3" /> مكرر
+                                </span>
+                              )}
+                              {isDeleted && (
+                                <span className="text-[10px] text-amber-500 font-sans flex items-center gap-0.5" title={batchRes?.message}>
+                                  <AlertTriangle className="w-3 h-3" /> محذوف سابقاً
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-300">{sample.description}</td>
                           <td className="px-4 py-3">
                             <div className="flex justify-center items-center">
                               <button
+                                type="button"
                                 onClick={() => handleRemoveSample(index)}
                                 className="p-2.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 rounded-xl transition-all duration-300 opacity-40 group-hover:opacity-100 transform group-hover:scale-110"
                                 title="حذف العينة"
@@ -725,7 +914,7 @@ export const Samples = () => {
                             </div>
                           </td>
                         </tr>
-                      ))
+                      );})
                     )}
                   </tbody>
                 </table>

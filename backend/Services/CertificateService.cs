@@ -13,11 +13,13 @@ namespace backend.Services
     {
         private readonly EnjazDbContext _context;
         private readonly IAlertService _alertService;
+        private readonly ISampleValidationService _sampleValidationService;
 
-        public CertificateService(EnjazDbContext context, IAlertService alertService)
+        public CertificateService(EnjazDbContext context, IAlertService alertService, ISampleValidationService sampleValidationService)
         {
             _context = context;
             _alertService = alertService;
+            _sampleValidationService = sampleValidationService;
         }
 
         public async Task<Certificate> CreateCertificateAsync(Certificate certificate)
@@ -33,11 +35,13 @@ namespace backend.Services
             }
 
             // Execute within a transaction with an exclusive lock on the Certificates table (or serializable level)
-            // to ensure no other request gets the same sequence number.
+            // to ensure no other request gets the same sequence number or causes race conditions.
             using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
             
             try
             {
+                // Atomic Pre-Save Validation for Sample Uniqueness
+                await _sampleValidationService.ValidateCertificateSamplesBeforeSaveAsync(certificate);
                 bool isEnvironmental = certificate.CertificateType != null && certificate.CertificateType.Contains("بيئية");
                 string typeCode = isEnvironmental ? "E" : "C";
                 string year = certificate.IssueDate.ToString("yy");

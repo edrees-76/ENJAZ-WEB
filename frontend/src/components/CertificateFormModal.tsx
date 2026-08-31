@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, ShieldCheck, Beaker, Package, ClipboardCheck, History, Plus, Trash2 } from 'lucide-react';
+import { X, Save, AlertCircle, ShieldCheck, Beaker, Package, ClipboardCheck, History, Plus, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useCertificateStore } from '../store/useCertificateStore';
 import { useSampleStore } from '../store/useSampleStore';
 import { useUIStore } from '../store/useUIStore';
 import { useToastStore } from '../store/useToastStore';
 import { useNavigationLock } from '../hooks/useNavigationLock';
 import type { Certificate, CertificateSample } from '../store/useCertificateStore';
+import { sampleValidationService, SampleCheckResult, type SampleUniquenessResult } from '../services/sampleValidationService';
+import { STANDARD_SENDERS } from '../data/senders';
 
 const toUTCDateString = () => {
   const d = new Date();
@@ -92,7 +94,60 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
   });
 
   const [samples, setSamples] = useState<CertificateSample[]>([]);
+  const [sampleValidationMap, setSampleValidationMap] = useState<Record<number, SampleUniquenessResult>>({});
+  const [isValidatingSamples, setIsValidatingSamples] = useState(false);
   const hasInitialized = React.useRef(false);
+
+  // Real-time batch validation for samples with AbortController
+  useEffect(() => {
+    if (!isOpen || samples.length === 0) {
+      setSampleValidationMap({});
+      return;
+    }
+
+    const abortController = new AbortController();
+    const timer = setTimeout(async () => {
+      const year = formData.issueDate ? new Date(formData.issueDate).getFullYear() : new Date().getFullYear();
+      const sampleNumbers = samples.map(s => s.sampleNumber || '');
+
+      // لا نقوم بالفحص إذا كانت كل أرقام العينات فارغة
+      if (sampleNumbers.every(sn => !sn.trim())) {
+        setSampleValidationMap({});
+        return;
+      }
+
+      setIsValidatingSamples(true);
+      try {
+        const res = await sampleValidationService.checkBatch({
+          sampleNumbers,
+          year,
+          sender: formData.sender,
+          excludeCertificateId: certificate?.id,
+          sourceReceptionId: formData.sampleReceptionId || (linkedReceptionId ? Number(linkedReceptionId) : undefined)
+        }, abortController.signal);
+
+        const newMap: Record<number, SampleUniquenessResult> = {};
+        samples.forEach((sample, idx) => {
+          if (res.results[idx] && sample.id !== undefined) {
+            newMap[sample.id] = res.results[idx];
+          }
+        });
+        setSampleValidationMap(newMap);
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
+          console.error('Batch validation failed', err);
+        }
+      } finally {
+        setIsValidatingSamples(false);
+      }
+    }, 400); // 400ms debounce
+
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
+  }, [isOpen, samples, formData.sender, formData.issueDate, certificate?.id, formData.sampleReceptionId, linkedReceptionId]);
 
   useEffect(() => {
     // Only initialize when opening or when the certificate/reception changes
@@ -271,8 +326,21 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
       }
     }
 
-    if (errors.length > 0) {
-      setFormErrors(errors);
+    // 4. Validate Sample Uniqueness
+    const duplicateErrors: string[] = [];
+    samples.forEach((s, idx) => {
+      const val = s.id !== undefined ? sampleValidationMap[s.id] : undefined;
+      if (val && (val.status === SampleCheckResult.DuplicateActive || val.status === SampleCheckResult.DuplicateInPayload)) {
+        duplicateErrors.push(`العينة (${s.sampleNumber || idx + 1}): ${val.message}`);
+      }
+    });
+
+    if (duplicateErrors.length > 0) {
+      setFormErrors(duplicateErrors);
+      addToast({
+        type: 'error',
+        message: 'لا يمكن حفظ الشهادة لوجود عينات مكررة.',
+      });
       return;
     }
 
@@ -291,12 +359,12 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     let success = false;
     let newCertId: number | null = null;
     if (certificate?.id) {
-       success = await updateCertificate(certificate.id, finalData);
+       success = Boolean(await updateCertificate(certificate.id, finalData));
     } else {
        const result = await createCertificate(finalData);
        if (result) {
          success = true;
-         newCertId = result.id;
+         newCertId = typeof result === 'object' ? result.id : null;
        }
     }
 
@@ -333,6 +401,11 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
             message: 'تم تحديث الشهادة بنجاح'
           });
         }
+      }
+    } else {
+      const storeError = useCertificateStore.getState().error;
+      if (storeError) {
+        setFormErrors([storeError]);
       }
     }
   };
@@ -499,7 +572,20 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                 )}
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الجهة المرسلة <span className="text-red-500 font-bold">*</span></label>
-                  <input type="text" name="sender" value={formData.sender} onChange={handleInputChange} className={`w-full p-4 bg-white dark:bg-slate-900 border rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all ${emptyRequiredFields.has('sender') && !formData.sender ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 dark:border-white/10'}`} />
+                  <input 
+                    type="text" 
+                    list="standard-senders-list"
+                    name="sender" 
+                    value={formData.sender} 
+                    onChange={handleInputChange} 
+                    placeholder="اختر أو اكتب اسم الجهة..."
+                    className={`w-full p-4 bg-white dark:bg-slate-900 border rounded-2xl text-slate-800 dark:text-white font-bold focus:ring-4 focus:ring-indigo-500/20 transition-all ${emptyRequiredFields.has('sender') && !formData.sender ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 dark:border-white/10'}`} 
+                  />
+                  <datalist id="standard-senders-list">
+                    {STANDARD_SENDERS.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black text-slate-500 dark:text-gray-500 uppercase tracking-widest mr-1">الشركة الموردة <span className="text-red-500 font-bold">*</span></label>
@@ -518,6 +604,9 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                 <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-4">
                   <span className="p-2 bg-emerald-500/10 rounded-lg"><Plus className="w-6 h-6 text-emerald-500" /></span>
                   العينات والنتائج الفنية
+                  {isValidatingSamples && (
+                    <span className="text-xs text-indigo-500 animate-pulse font-medium">جاري فحص تفرد العينات...</span>
+                  )}
                 </h3>
              </div>
              
@@ -527,7 +616,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                     <thead className="bg-slate-100 dark:bg-white/5 border-b border-slate-200 dark:border-white/10">
                       <tr className="text-slate-900 dark:text-gray-300 text-xs font-black uppercase tracking-widest">
                         <th className="p-5 w-16">ت</th>
-                        <th className="p-5 min-w-[120px]">رقم العينة</th>
+                        <th className="p-5 min-w-[150px]">رقم العينة</th>
                         <th className="p-5 min-w-[300px]">البيان</th>
                         <th className="p-5 text-center">تاريخ القياس <span className="text-red-500 font-bold">*</span></th>
                         {formData.certificateType === 'استهلاكية' ? (
@@ -545,13 +634,57 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                      {samples.map((sample, index) => (
-                        <tr key={sample.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                      {samples.map((sample, index) => {
+                        const valResult = sample.id !== undefined ? sampleValidationMap[sample.id] : undefined;
+                        const isDuplicate = valResult?.status === SampleCheckResult.DuplicateActive || valResult?.status === SampleCheckResult.DuplicateInPayload;
+                        const isDeletedWarning = valResult?.status === SampleCheckResult.FoundInDeleted;
+                        const isUnique = valResult?.status === SampleCheckResult.Unique && Boolean(sample.sampleNumber?.trim());
+
+                        return (
+                        <tr key={sample.id} className={`transition-colors ${isDuplicate ? 'bg-red-500/5' : isDeletedWarning ? 'bg-amber-500/5' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}>
                           <td className="p-4 text-center">
                             <span className="p-2 bg-slate-200 dark:bg-white/5 rounded-lg text-xs font-mono font-bold">{index + 1}</span>
                           </td>
-                          <td className="p-4 min-w-[120px]">
-                            <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white font-bold focus:ring-2 focus:ring-emerald-500/20" value={sample.sampleNumber} onChange={(e) => handleSampleChange(sample.id, 'sampleNumber', e.target.value)} />
+                          <td className="p-4 min-w-[150px]">
+                            <div className="space-y-1">
+                              <input 
+                                type="text" 
+                                className={`w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-bold focus:ring-2 transition-all ${
+                                  isDuplicate 
+                                    ? 'border-red-500 ring-2 ring-red-500/20 text-red-600 dark:text-red-400' 
+                                    : isDeletedWarning 
+                                    ? 'border-amber-500 ring-2 ring-amber-500/20 text-amber-600 dark:text-amber-400' 
+                                    : isUnique 
+                                    ? 'border-emerald-500/50 text-slate-800 dark:text-white' 
+                                    : 'border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:ring-emerald-500/20'
+                                }`} 
+                                value={sample.sampleNumber} 
+                                onChange={(e) => handleSampleChange(sample.id, 'sampleNumber', e.target.value)} 
+                                placeholder="رقم العينة"
+                              />
+                              {sample.sampleNumber && valResult && (
+                                <div className="text-[11px] font-bold">
+                                  {isDuplicate && (
+                                    <span className="flex items-center gap-1 text-red-600 dark:text-red-400" title={valResult.message}>
+                                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                      {valResult.status === SampleCheckResult.DuplicateInPayload ? 'مكرر في النموذج' : 'مكرر ومسجل مسبقاً'}
+                                    </span>
+                                  )}
+                                  {isDeletedWarning && (
+                                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title={valResult.message}>
+                                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                      كان محذوفاً سابقاً
+                                    </span>
+                                  )}
+                                  {isUnique && (
+                                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                      متاح وفريد
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 min-w-[300px]">
                             <input type="text" className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-800 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500/20" value={sample.description} onChange={(e) => handleSampleChange(sample.id, 'description', e.target.value)} />
@@ -598,7 +731,7 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                              </button>
                           </td>
                         </tr>
-                      ))}
+                      );})}
                     </tbody>
                   </table>
                   {samples.length === 0 && (

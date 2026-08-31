@@ -125,6 +125,7 @@ try
 
     // Existing services
     builder.Services.AddScoped<ICertificateService, CertificateService>();
+    builder.Services.AddScoped<ISampleValidationService, SampleValidationService>();
     builder.Services.AddScoped<ReportService>();
     builder.Services.AddScoped<ExcelExportService>();
     builder.Services.AddScoped<PdfExportService>();

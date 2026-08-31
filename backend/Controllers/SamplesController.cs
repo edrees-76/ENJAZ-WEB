@@ -17,11 +17,13 @@ namespace backend.Controllers
     {
         private readonly EnjazDbContext _context;
         private readonly IAuditLogService _audit;
+        private readonly ISampleValidationService _validationService;
 
-        public SamplesController(EnjazDbContext context, IAuditLogService audit)
+        public SamplesController(EnjazDbContext context, IAuditLogService audit, ISampleValidationService validationService)
         {
             _context = context;
             _audit = audit;
+            _validationService = validationService;
         }
 
         private (int? userId, string? userName) GetCurrentUser()
@@ -88,12 +90,22 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<ActionResult<SampleReception>> PostSampleReception(SampleReception sampleReception)
         {
+            sampleReception.Date = DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc);
+            sampleReception.CreatedAt = DateTime.UtcNow;
+
+            // Atomic Pre-Save Validation for Sample Uniqueness
+            try
+            {
+                await _validationService.ValidateReceptionSamplesBeforeSaveAsync(sampleReception);
+            }
+            catch (DuplicateSampleException ex)
+            {
+                return StatusCode(StatusCodes.Status409Conflict, ex.Result);
+            }
+
             // Calculate next sequence
             var lastEntry = await _context.SampleReceptions.OrderByDescending(r => r.Id).FirstOrDefaultAsync();
             sampleReception.Sequence = (lastEntry?.Sequence ?? 0) + 1;
-            
-            sampleReception.Date = DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc);
-            sampleReception.CreatedAt = DateTime.UtcNow;
             
             var (userId, userName) = GetCurrentUser();
             sampleReception.CreatedBy = userId ?? 0;
@@ -137,6 +149,18 @@ namespace backend.Controllers
             if (existingReception == null)
             {
                 return NotFound();
+            }
+
+            sampleReception.Date = DateTime.SpecifyKind(sampleReception.Date, DateTimeKind.Utc);
+
+            // Atomic Pre-Save Validation for Sample Uniqueness
+            try
+            {
+                await _validationService.ValidateReceptionSamplesBeforeSaveAsync(sampleReception, excludeReceptionId: id);
+            }
+            catch (DuplicateSampleException ex)
+            {
+                return StatusCode(StatusCodes.Status409Conflict, ex.Result);
             }
 
             // ═══ Capture old values for change tracking ═══

@@ -17,13 +17,20 @@ namespace backend.Controllers
     {
         private readonly EnjazDbContext _context;
         private readonly ICertificateService _certificateService;
+        private readonly ISampleValidationService _sampleValidationService;
         private readonly ILogger<CertificatesController> _logger;
         private readonly IAuditLogService _audit;
 
-        public CertificatesController(EnjazDbContext context, ICertificateService certificateService, ILogger<CertificatesController> logger, IAuditLogService audit)
+        public CertificatesController(
+            EnjazDbContext context,
+            ICertificateService certificateService,
+            ISampleValidationService sampleValidationService,
+            ILogger<CertificatesController> logger,
+            IAuditLogService audit)
         {
             _context = context;
             _certificateService = certificateService;
+            _sampleValidationService = sampleValidationService;
             _logger = logger;
             _audit = audit;
         }
@@ -121,6 +128,11 @@ namespace backend.Controllers
 
                 return CreatedAtAction(nameof(GetCertificates), new { id = createdCert.Id }, fullCert);
             }
+            catch (DuplicateSampleException ex)
+            {
+                _logger.LogWarning("Duplicate sample detected on create: {Message}", ex.Message);
+                return StatusCode(StatusCodes.Status409Conflict, ex.Result);
+            }
             catch (Exception ex)
             {
                 var fullError = ex.InnerException != null 
@@ -147,6 +159,17 @@ namespace backend.Controllers
             if (existingCert == null)
             {
                 return NotFound(new { message = "الشهادة غير موجودة" });
+            }
+
+            // Atomic Pre-Save Validation for Sample Uniqueness
+            try
+            {
+                await _sampleValidationService.ValidateCertificateSamplesBeforeSaveAsync(certificate, excludeCertificateId: id);
+            }
+            catch (DuplicateSampleException ex)
+            {
+                _logger.LogWarning("Duplicate sample detected on update certificate {Id}: {Message}", id, ex.Message);
+                return StatusCode(StatusCodes.Status409Conflict, ex.Result);
             }
 
             // Check for FinancialReceiptNumber uniqueness (excluding current certificate)

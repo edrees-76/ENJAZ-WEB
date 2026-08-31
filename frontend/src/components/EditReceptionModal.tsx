@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Beaker, FileText, Plus, Trash2, Lock } from 'lucide-react';
+import { X, Save, AlertCircle, Beaker, FileText, Plus, Trash2, Lock, CheckCircle2, AlertTriangle, History } from 'lucide-react';
 import { useNavigationLock } from '../hooks/useNavigationLock';
 import { useToastStore } from '../store/useToastStore';
 import type { Sample, SampleReception } from '../store/useSampleStore';
+import { sampleValidationService, SampleCheckResult, type SampleUniquenessResult } from '../services/sampleValidationService';
+import { STANDARD_SENDERS } from '../data/senders';
 
 interface EditReceptionModalProps {
   isOpen: boolean;
@@ -22,19 +24,91 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
   const [formData, setFormData] = useState<SampleReception | null>(null);
   const [currentSamples, setCurrentSamples] = useState<Sample[]>([]);
   const [newSample, setNewSample] = useState<Sample>({ sampleNumber: '', description: '' });
+  const [newSampleValidation, setNewSampleValidation] = useState<SampleUniquenessResult | null>(null);
+  const [isValidatingNewSample, setIsValidatingNewSample] = useState(false);
+  const [batchValidationMap, setBatchValidationMap] = useState<Record<number, SampleUniquenessResult>>({});
+  const [isValidatingBatch, setIsValidatingBatch] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isManualSender, setIsManualSender] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
-  const senderOptions = [
-    "مركز الرقابة على الأغذية والأدوية - بنغازي",
-    "مركز الرقابة على الأغذية والأدوية - البطنان",
-    "مركز الرقابة على الأغذية والأدوية - مصراتة",
-    "مركز الرقابة على الأغذية والأدوية - الخمس",
-    "مركز الرقابة على الأغذية والأدوية - طرابلس",
-    "مركز الرقابة على الأغذية والأدوية - زوارة"
-  ];
+  const senderOptions = STANDARD_SENDERS;
+
+  // Real-time debounce validation for newSample
+  useEffect(() => {
+    if (!isOpen || !newSample.sampleNumber.trim()) {
+      setNewSampleValidation(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+      setIsValidatingNewSample(true);
+      try {
+        const res = await sampleValidationService.checkSample({
+          sampleNumber: newSample.sampleNumber,
+          year,
+          sender: formData?.sender,
+          excludeReceptionId: reception?.id
+        }, controller.signal);
+        setNewSampleValidation(res);
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
+          console.error('Validation error', err);
+        }
+      } finally {
+        setIsValidatingNewSample(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isOpen, newSample.sampleNumber, formData?.sender, formData?.date, reception?.id]);
+
+  // Real-time batch validation for currentSamples
+  useEffect(() => {
+    if (!isOpen || currentSamples.length === 0) {
+      setBatchValidationMap({});
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+      setIsValidatingBatch(true);
+      try {
+        const res = await sampleValidationService.checkBatch({
+          sampleNumbers: currentSamples.map(s => s.sampleNumber),
+          year,
+          sender: formData?.sender,
+          excludeReceptionId: reception?.id
+        }, controller.signal);
+
+        const map: Record<number, SampleUniquenessResult> = {};
+        res.results.forEach((r, idx) => {
+          map[idx] = r;
+        });
+        setBatchValidationMap(map);
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
+          console.error('Batch validation error', err);
+        }
+      } finally {
+        setIsValidatingBatch(false);
+      }
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isOpen, currentSamples, formData?.sender, formData?.date, reception?.id]);
 
   // Check if form has changes
   const isDirty = formData && reception ? (
@@ -62,6 +136,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
       // Reset confirmation and error states when opening a new record
       setShowConfirmClose(false);
       setErrors([]);
+      setNewSampleValidation(null);
     }
   }, [reception]);
 
@@ -96,6 +171,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     if (!isOpen) {
       setShowConfirmClose(false);
       setErrors([]);
+      setNewSampleValidation(null);
     }
   }, [isOpen]);
 
@@ -110,10 +186,48 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
   };
 
   const handleAddSample = () => {
-    if (newSample.sampleNumber && newSample.description) {
-      setCurrentSamples([...currentSamples, newSample]);
-      setNewSample({ sampleNumber: '', description: '' });
+    if (!newSample.sampleNumber || !newSample.description) {
+      addToast({
+        type: 'error',
+        message: 'يرجى إدخال رقم العينة وبيانها أولاً',
+      });
+      return;
     }
+
+    const rawTrimmed = newSample.sampleNumber.trim();
+
+    // Check if already in currentSamples
+    const isAlreadyInList = currentSamples.some(
+      s => s.sampleNumber.trim().replace(/^0+/, '') === rawTrimmed.replace(/^0+/, '')
+    );
+    if (isAlreadyInList) {
+      addToast({
+        type: 'error',
+        message: `العينة رقم (${rawTrimmed}) مكررة داخل القائمة الحالية.`,
+      });
+      return;
+    }
+
+    // Check active uniqueness status
+    if (newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload) {
+      addToast({
+        type: 'error',
+        message: newSampleValidation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
+      });
+      return;
+    }
+
+    if (newSampleValidation?.status === SampleCheckResult.FoundInDeleted) {
+      addToast({
+        type: 'info',
+        message: `تنبيه: العينة (${rawTrimmed}) كانت محذوفة سابقاً وتمت إضافتها.`,
+        duration: 5000
+      });
+    }
+
+    setCurrentSamples([...currentSamples, newSample]);
+    setNewSample({ sampleNumber: '', description: '' });
+    setNewSampleValidation(null);
   };
 
   const handleRemoveSample = (index: number) => {
@@ -133,12 +247,20 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     if (!formData.certificateType) missing.push("نوع العينات");
     if (currentSamples.length === 0) missing.push("قائمة العينات (يجب إضافة عينة واحدة على الأقل)");
     
+    // Check for any duplicate active samples in batch map
+    const hasAnyDuplicate = Object.values(batchValidationMap).some(
+      v => v.status === SampleCheckResult.DuplicateActive || v.status === SampleCheckResult.DuplicateInPayload
+    );
+    if (hasAnyDuplicate) {
+      missing.push("توجد عينات مكررة في القائمة");
+    }
+
     setErrors(missing);
     
     if (missing.length > 0) {
       addToast({
         type: 'error',
-        message: 'يوجد نقص في البيانات المطلوبة',
+        message: hasAnyDuplicate ? 'لا يمكن حفظ الاستلام لوجود عينات مكررة.' : 'يوجد نقص في البيانات المطلوبة',
         duration: 4000
       });
     }
@@ -388,27 +510,65 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100/80 dark:bg-white/5 p-6 rounded-3xl border border-slate-300 dark:border-white/10 shadow-sm">
               <div className="md:col-span-1 space-y-2">
-                <label className="text-slate-700 dark:text-gray-400 text-xs font-bold">رقم العينة</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-700 dark:text-gray-400 text-xs font-bold">رقم العينة</label>
+                  {isValidatingNewSample && (
+                    <span className="text-[10px] text-indigo-500 animate-pulse font-medium">فحص...</span>
+                  )}
+                </div>
                 <input 
-                  type="text"
+                  type="text" 
                   value={newSample.sampleNumber}
                   onChange={e => setNewSample({...newSample, sampleNumber: e.target.value})}
                   onKeyDown={e => e.key === 'Enter' && handleAddSample()}
-                  className="w-full bg-white dark:bg-slate-950/50 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-center font-mono shadow-inner"
+                  className={`w-full bg-white dark:bg-slate-950/50 border rounded-xl px-4 py-3 text-center font-mono shadow-inner font-bold ${
+                    newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload
+                      ? 'border-red-500 ring-2 ring-red-500/20 text-red-600 dark:text-red-400'
+                      : newSampleValidation?.status === SampleCheckResult.FoundInDeleted
+                      ? 'border-amber-500 ring-2 ring-amber-500/20 text-amber-600 dark:text-amber-400'
+                      : newSampleValidation?.status === SampleCheckResult.Unique && newSample.sampleNumber
+                      ? 'border-emerald-500/50 text-slate-900 dark:text-white'
+                      : 'border-slate-300 dark:border-white/10 text-slate-900 dark:text-white'
+                  }`}
+                  placeholder="رقم العينة..."
                 />
+                {newSample.sampleNumber && newSampleValidation && (
+                  <div className="text-[11px] font-bold">
+                    {(newSampleValidation.status === SampleCheckResult.DuplicateActive || newSampleValidation.status === SampleCheckResult.DuplicateInPayload) && (
+                      <span className="flex items-center gap-1 text-red-600 dark:text-red-400" title={newSampleValidation.message}>
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        مكرر ومسجل مسبقاً
+                      </span>
+                    )}
+                    {newSampleValidation.status === SampleCheckResult.FoundInDeleted && (
+                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400" title={newSampleValidation.message}>
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        محذوف سابقاً
+                      </span>
+                    )}
+                    {newSampleValidation.status === SampleCheckResult.Unique && (
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        متاح وفريد
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="md:col-span-2 space-y-2">
                 <label className="text-slate-700 dark:text-gray-400 text-xs font-bold">الوصف / البيان</label>
                 <input 
-                  type="text"
+                  type="text" 
                   value={newSample.description}
                   onChange={e => setNewSample({...newSample, description: e.target.value})}
                   onKeyDown={e => e.key === 'Enter' && handleAddSample()}
                   className="w-full bg-white dark:bg-slate-950/50 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white shadow-inner"
+                  placeholder="وصف العينة..."
                 />
               </div>
               <div className="flex items-end">
                 <button 
+                  type="button"
                   onClick={handleAddSample}
                   className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                 >
@@ -423,27 +583,46 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                 <thead className="sticky top-0 bg-slate-200/80 dark:bg-slate-900 border-b border-slate-300 dark:border-white/10">
                   <tr className="text-slate-700 dark:text-gray-400 text-xs font-bold">
                     <th className="p-4 text-center w-16">م</th>
-                    <th className="p-4 text-center w-32">رقم العينة</th>
+                    <th className="p-4 text-center w-40">رقم العينة</th>
                     <th className="p-4">وصف العينة</th>
                     <th className="p-4 text-center w-20">إجراء</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-white/5">
-                  {currentSamples.map((s, i) => (
-                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-white/5 group transition-colors">
+                  {currentSamples.map((s, i) => {
+                    const batchRes = batchValidationMap[i];
+                    const isDup = batchRes?.status === SampleCheckResult.DuplicateActive || batchRes?.status === SampleCheckResult.DuplicateInPayload;
+                    const isDeleted = batchRes?.status === SampleCheckResult.FoundInDeleted;
+
+                    return (
+                    <tr key={i} className={`group transition-colors ${isDup ? 'bg-red-500/5' : isDeleted ? 'bg-amber-500/5' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}>
                       <td className="p-4 text-center text-cyan-600 dark:text-cyan-400 font-mono font-bold">{i + 1}</td>
                       <td className="p-4 text-center">
-                        <input 
-                          type="text"
-                          value={s.sampleNumber}
-                          onChange={e => handleUpdateSample(i, 'sampleNumber', e.target.value)}
-                          className="w-full bg-transparent border-b border-transparent focus:border-cyan-500/50 outline-none text-center font-mono text-slate-900 dark:text-white py-1 transition-all"
-                          placeholder="رقم العينة..."
-                        />
+                        <div className="flex flex-col items-center">
+                          <input 
+                            type="text" 
+                            value={s.sampleNumber}
+                            onChange={e => handleUpdateSample(i, 'sampleNumber', e.target.value)}
+                            className={`w-full bg-transparent border-b outline-none text-center font-mono py-1 transition-all font-bold ${
+                              isDup ? 'border-red-500 text-red-600 dark:text-red-400' : isDeleted ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent focus:border-cyan-500/50 text-slate-900 dark:text-white'
+                            }`}
+                            placeholder="رقم العينة..."
+                          />
+                          {isDup && (
+                            <span className="text-[10px] text-red-500 font-sans flex items-center gap-0.5" title={batchRes?.message}>
+                              <AlertCircle className="w-3 h-3" /> مكرر
+                            </span>
+                          )}
+                          {isDeleted && (
+                            <span className="text-[10px] text-amber-500 font-sans flex items-center gap-0.5" title={batchRes?.message}>
+                              <AlertTriangle className="w-3 h-3" /> محذوف سابقاً
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <input 
-                          type="text"
+                          type="text" 
                           value={s.description}
                           onChange={e => handleUpdateSample(i, 'description', e.target.value)}
                           className="w-full bg-transparent border-b border-transparent focus:border-emerald-500/50 outline-none text-slate-900 dark:text-white py-1 transition-all"
@@ -452,6 +631,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                       </td>
                       <td className="p-4 text-center">
                         <button 
+                          type="button"
                           onClick={() => handleRemoveSample(i)}
                           className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                           title="حذف العينة"
@@ -460,7 +640,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
