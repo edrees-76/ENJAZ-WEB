@@ -98,56 +98,57 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
   const [isValidatingSamples, setIsValidatingSamples] = useState(false);
   const hasInitialized = React.useRef(false);
 
-  // Real-time batch validation for samples with AbortController
-  useEffect(() => {
-    if (!isOpen || samples.length === 0) {
+  // Validate batch samples function (called onBlur, onSubmit, or when sender/date changes)
+  const validateBatchSamples = async (samplesToValidate?: CertificateSample[]) => {
+    const list = samplesToValidate ?? samples;
+    if (!isOpen || list.length === 0) {
       setSampleValidationMap({});
-      return;
+      return {};
     }
 
-    const abortController = new AbortController();
-    const timer = setTimeout(async () => {
-      const year = formData.issueDate ? new Date(formData.issueDate).getFullYear() : new Date().getFullYear();
-      const sampleNumbers = samples.map(s => s.sampleNumber || '');
+    const year = formData.issueDate ? new Date(formData.issueDate).getFullYear() : new Date().getFullYear();
+    const sampleNumbers = list.map(s => s.sampleNumber || '');
 
-      // لا نقوم بالفحص إذا كانت كل أرقام العينات فارغة
-      if (sampleNumbers.every(sn => !sn.trim())) {
-        setSampleValidationMap({});
-        return;
-      }
+    // لا نقوم بالفحص إذا كانت كل أرقام العينات فارغة
+    if (sampleNumbers.every(sn => !sn.trim())) {
+      setSampleValidationMap({});
+      return {};
+    }
 
-      setIsValidatingSamples(true);
-      try {
-        const res = await sampleValidationService.checkBatch({
-          sampleNumbers,
-          year,
-          sender: formData.sender,
-          excludeCertificateId: certificate?.id,
-          sourceReceptionId: formData.sampleReceptionId || (linkedReceptionId ? Number(linkedReceptionId) : undefined)
-        }, abortController.signal);
+    setIsValidatingSamples(true);
+    try {
+      const res = await sampleValidationService.checkBatch({
+        sampleNumbers,
+        year,
+        sender: formData.sender,
+        excludeCertificateId: certificate?.id,
+        sourceReceptionId: formData.sampleReceptionId || (linkedReceptionId ? Number(linkedReceptionId) : undefined)
+      });
 
-        const newMap: Record<number, SampleUniquenessResult> = {};
-        samples.forEach((sample, idx) => {
-          if (res.results[idx] && sample.id !== undefined) {
-            newMap[sample.id] = res.results[idx];
-          }
-        });
-        setSampleValidationMap(newMap);
-      } catch (err: unknown) {
-        const errorObj = err as { name?: string };
-        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
-          console.error('Batch validation failed', err);
+      const newMap: Record<number, SampleUniquenessResult> = {};
+      list.forEach((sample, idx) => {
+        if (res.results[idx] && sample.id !== undefined) {
+          newMap[sample.id] = res.results[idx];
         }
-      } finally {
-        setIsValidatingSamples(false);
-      }
-    }, 400); // 400ms debounce
+      });
+      setSampleValidationMap(newMap);
+      return newMap;
+    } catch (err: unknown) {
+      console.error('Batch validation failed', err);
+      return {};
+    } finally {
+      setIsValidatingSamples(false);
+    }
+  };
 
-    return () => {
-      clearTimeout(timer);
-      abortController.abort();
-    };
-  }, [isOpen, samples, formData.sender, formData.issueDate, certificate?.id, formData.sampleReceptionId, linkedReceptionId]);
+  // Re-validate existing samples when sender or issue date changes
+  useEffect(() => {
+    if (!isOpen || samples.length === 0) return;
+    const hasAnySampleNumber = samples.some(s => s.sampleNumber && s.sampleNumber.trim());
+    if (hasAnySampleNumber) {
+      validateBatchSamples(samples);
+    }
+  }, [isOpen, formData.sender, formData.issueDate]);
 
   useEffect(() => {
     // Only initialize when opening or when the certificate/reception changes
@@ -233,6 +234,15 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
   const handleSampleChange = (id: number | undefined, field: keyof CertificateSample, value: string) => {
     setSamples(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
     setIsDirty(true);
+    // Clear validation result for this sample while typing so the user isn't interrupted prematurely
+    if (field === 'sampleNumber' && id !== undefined) {
+      setSampleValidationMap(prev => {
+        if (!prev[id]) return prev;
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
   };
 
   const removeSampleRow = (id: number | undefined) => {
@@ -327,9 +337,10 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
     }
 
     // 4. Validate Sample Uniqueness
+    const currentValidationMap = await validateBatchSamples(samples);
     const duplicateErrors: string[] = [];
     samples.forEach((s, idx) => {
-      const val = s.id !== undefined ? sampleValidationMap[s.id] : undefined;
+      const val = s.id !== undefined ? (currentValidationMap[s.id] || sampleValidationMap[s.id]) : undefined;
       if (val && (val.status === SampleCheckResult.DuplicateActive || val.status === SampleCheckResult.DuplicateInPayload)) {
         duplicateErrors.push(`العينة (${s.sampleNumber || idx + 1}): ${val.message}`);
       }
@@ -660,6 +671,11 @@ const CertificateFormModal: React.FC<CertificateFormModalProps> = ({ isOpen, onC
                                 }`} 
                                 value={sample.sampleNumber} 
                                 onChange={(e) => handleSampleChange(sample.id, 'sampleNumber', e.target.value)} 
+                                onBlur={() => {
+                                  if (sample.sampleNumber && sample.sampleNumber.trim()) {
+                                    validateBatchSamples();
+                                  }
+                                }}
                                 placeholder="رقم العينة"
                               />
                               {sample.sampleNumber && valResult && (

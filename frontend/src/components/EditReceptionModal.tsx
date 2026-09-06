@@ -35,80 +35,80 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
 
   const senderOptions = STANDARD_SENDERS;
 
-  // Real-time debounce validation for newSample
-  useEffect(() => {
-    if (!isOpen || !newSample.sampleNumber.trim()) {
+  // Validate newSample on blur or before adding
+  const validateNewSample = async (sampleNumToValidate?: string) => {
+    const num = (sampleNumToValidate ?? newSample.sampleNumber).trim();
+    if (!num) {
       setNewSampleValidation(null);
-      return;
+      return null;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
-      setIsValidatingNewSample(true);
-      try {
-        const res = await sampleValidationService.checkSample({
-          sampleNumber: newSample.sampleNumber,
-          year,
-          sender: formData?.sender,
-          excludeReceptionId: reception?.id
-        }, controller.signal);
-        setNewSampleValidation(res);
-      } catch (err: unknown) {
-        const errorObj = err as { name?: string };
-        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
-          console.error('Validation error', err);
-        }
-      } finally {
-        setIsValidatingNewSample(false);
-      }
-    }, 400);
+    const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+    setIsValidatingNewSample(true);
+    try {
+      const res = await sampleValidationService.checkSample({
+        sampleNumber: num,
+        year,
+        sender: formData?.sender,
+        excludeReceptionId: reception?.id
+      });
+      setNewSampleValidation(res);
+      return res;
+    } catch (err: unknown) {
+      console.error('Validation error', err);
+      return null;
+    } finally {
+      setIsValidatingNewSample(false);
+    }
+  };
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [isOpen, newSample.sampleNumber, formData?.sender, formData?.date, reception?.id]);
+  // Re-validate newSample if sender or date changes and sample number is present
+  useEffect(() => {
+    if (isOpen && newSample.sampleNumber.trim()) {
+      validateNewSample();
+    }
+  }, [isOpen, formData?.sender, formData?.date, reception?.id]);
 
-  // Real-time batch validation for currentSamples
+  // Batch validate currentSamples function
+  const validateBatchSamples = async (samplesToValidate?: Sample[]) => {
+    const list = samplesToValidate ?? currentSamples;
+    if (!isOpen || list.length === 0) {
+      setBatchValidationMap({});
+      return {};
+    }
+
+    const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+    setIsValidatingBatch(true);
+    try {
+      const res = await sampleValidationService.checkBatch({
+        sampleNumbers: list.map(s => s.sampleNumber),
+        year,
+        sender: formData?.sender,
+        excludeReceptionId: reception?.id
+      });
+
+      const map: Record<number, SampleUniquenessResult> = {};
+      res.results.forEach((r, idx) => {
+        map[idx] = r;
+      });
+      setBatchValidationMap(map);
+      return map;
+    } catch (err: unknown) {
+      console.error('Batch validation error', err);
+      return {};
+    } finally {
+      setIsValidatingBatch(false);
+    }
+  };
+
+  // Re-validate currentSamples when list count changes or sender/date changes
   useEffect(() => {
     if (!isOpen || currentSamples.length === 0) {
       setBatchValidationMap({});
       return;
     }
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      const year = formData?.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
-      setIsValidatingBatch(true);
-      try {
-        const res = await sampleValidationService.checkBatch({
-          sampleNumbers: currentSamples.map(s => s.sampleNumber),
-          year,
-          sender: formData?.sender,
-          excludeReceptionId: reception?.id
-        }, controller.signal);
-
-        const map: Record<number, SampleUniquenessResult> = {};
-        res.results.forEach((r, idx) => {
-          map[idx] = r;
-        });
-        setBatchValidationMap(map);
-      } catch (err: unknown) {
-        const errorObj = err as { name?: string };
-        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
-          console.error('Batch validation error', err);
-        }
-      } finally {
-        setIsValidatingBatch(false);
-      }
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [isOpen, currentSamples, formData?.sender, formData?.date, reception?.id]);
+    validateBatchSamples(currentSamples);
+  }, [isOpen, currentSamples.length, formData?.sender, formData?.date, reception?.id]);
 
   // Check if form has changes
   const isDirty = formData && reception ? (
@@ -185,7 +185,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     }
   };
 
-  const handleAddSample = () => {
+  const handleAddSample = async () => {
     if (!newSample.sampleNumber || !newSample.description) {
       addToast({
         type: 'error',
@@ -208,16 +208,22 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
       return;
     }
 
+    // Validate with backend if not already validated
+    let validation = newSampleValidation;
+    if (!validation) {
+      validation = await validateNewSample(rawTrimmed);
+    }
+
     // Check active uniqueness status
-    if (newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload) {
+    if (validation?.status === SampleCheckResult.DuplicateActive || validation?.status === SampleCheckResult.DuplicateInPayload) {
       addToast({
         type: 'error',
-        message: newSampleValidation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
+        message: validation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
       });
       return;
     }
 
-    if (newSampleValidation?.status === SampleCheckResult.FoundInDeleted) {
+    if (validation?.status === SampleCheckResult.FoundInDeleted) {
       addToast({
         type: 'info',
         message: `تنبيه: العينة (${rawTrimmed}) كانت محذوفة سابقاً وتمت إضافتها.`,
@@ -238,6 +244,15 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
     const updated = [...currentSamples];
     updated[index] = { ...updated[index], [field]: value };
     setCurrentSamples(updated);
+    // Clear validation result for this row while user is actively editing sampleNumber
+    if (field === 'sampleNumber') {
+      setBatchValidationMap(prev => {
+        if (!prev[index]) return prev;
+        const copy = { ...prev };
+        delete copy[index];
+        return copy;
+      });
+    }
   };
 
   const validateForm = () => {
@@ -269,6 +284,7 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
   };
 
   const handleSave = async () => {
+    await validateBatchSamples(currentSamples);
     if (!validateForm()) return;
 
     setIsSaving(true);
@@ -519,7 +535,15 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                 <input 
                   type="text" 
                   value={newSample.sampleNumber}
-                  onChange={e => setNewSample({...newSample, sampleNumber: e.target.value})}
+                  onChange={e => {
+                    setNewSample({...newSample, sampleNumber: e.target.value});
+                    if (newSampleValidation) setNewSampleValidation(null);
+                  }}
+                  onBlur={() => {
+                    if (newSample.sampleNumber.trim()) {
+                      validateNewSample();
+                    }
+                  }}
                   onKeyDown={e => e.key === 'Enter' && handleAddSample()}
                   className={`w-full bg-white dark:bg-slate-950/50 border rounded-xl px-4 py-3 text-center font-mono shadow-inner font-bold ${
                     newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload
@@ -603,6 +627,11 @@ export const EditReceptionModal: React.FC<EditReceptionModalProps> = ({
                             type="text" 
                             value={s.sampleNumber}
                             onChange={e => handleUpdateSample(i, 'sampleNumber', e.target.value)}
+                            onBlur={() => {
+                              if (s.sampleNumber && s.sampleNumber.trim()) {
+                                validateBatchSamples();
+                              }
+                            }}
                             className={`w-full bg-transparent border-b outline-none text-center font-mono py-1 transition-all font-bold ${
                               isDup ? 'border-red-500 text-red-600 dark:text-red-400' : isDeleted ? 'border-amber-500 text-amber-600 dark:text-amber-400' : 'border-transparent focus:border-cyan-500/50 text-slate-900 dark:text-white'
                             }`}

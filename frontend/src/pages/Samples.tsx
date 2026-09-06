@@ -79,39 +79,38 @@ export const Samples = () => {
   const [batchValidationMap, setBatchValidationMap] = useState<Record<number, SampleUniquenessResult>>({});
   const [isValidatingBatch, setIsValidatingBatch] = useState(false);
 
-  // Real-time debounce validation for newSample
-  useEffect(() => {
-    if (!newSample.sampleNumber.trim()) {
+  // Validate newSample on blur or before adding
+  const validateNewSample = async (sampleNumToValidate?: string) => {
+    const num = (sampleNumToValidate ?? newSample.sampleNumber).trim();
+    if (!num) {
       setNewSampleValidation(null);
-      return;
+      return null;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      const year = formData.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
-      setIsValidatingNewSample(true);
-      try {
-        const res = await sampleValidationService.checkSample({
-          sampleNumber: newSample.sampleNumber,
-          year,
-          sender: formData.sender
-        }, controller.signal);
-        setNewSampleValidation(res);
-      } catch (err: unknown) {
-        const errorObj = err as { name?: string };
-        if (errorObj?.name !== 'CanceledError' && errorObj?.name !== 'AbortError') {
-          console.error('Validation error', err);
-        }
-      } finally {
-        setIsValidatingNewSample(false);
-      }
-    }, 400);
+    const year = formData.date ? new Date(formData.date).getFullYear() : new Date().getFullYear();
+    setIsValidatingNewSample(true);
+    try {
+      const res = await sampleValidationService.checkSample({
+        sampleNumber: num,
+        year,
+        sender: formData.sender
+      });
+      setNewSampleValidation(res);
+      return res;
+    } catch (err: unknown) {
+      console.error('Validation error', err);
+      return null;
+    } finally {
+      setIsValidatingNewSample(false);
+    }
+  };
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [newSample.sampleNumber, formData.sender, formData.date]);
+  // Re-validate newSample if sender or date changes and sample number is present
+  useEffect(() => {
+    if (newSample.sampleNumber.trim()) {
+      validateNewSample();
+    }
+  }, [formData.sender, formData.date]);
 
   // Real-time batch validation for currentSamples
   useEffect(() => {
@@ -263,7 +262,7 @@ export const Samples = () => {
     }
   }, [showAddForm, lock, unlock]);
 
-  const handleAddSample = () => {
+  const handleAddSample = async () => {
     if (!newSample.sampleNumber || !newSample.description) {
       addToast({
         type: 'error',
@@ -286,11 +285,17 @@ export const Samples = () => {
       return;
     }
 
-    // 2. Check active uniqueness status
-    if (newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload) {
+    // 2. Validate with backend if not already validated
+    let validation = newSampleValidation;
+    if (!validation) {
+      validation = await validateNewSample(rawTrimmed);
+    }
+
+    // Check active uniqueness status
+    if (validation?.status === SampleCheckResult.DuplicateActive || validation?.status === SampleCheckResult.DuplicateInPayload) {
       addToast({
         type: 'error',
-        message: newSampleValidation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
+        message: validation.message || `العينة (${rawTrimmed}) مسجلة مسبقاً ولا يمكن إضافتها.`,
       });
       return;
     }
@@ -795,7 +800,15 @@ export const Samples = () => {
                     <input
                       type="text"
                       value={newSample.sampleNumber}
-                      onChange={(e) => setNewSample({ ...newSample, sampleNumber: e.target.value })}
+                      onChange={(e) => {
+                        setNewSample({ ...newSample, sampleNumber: e.target.value });
+                        if (newSampleValidation) setNewSampleValidation(null);
+                      }}
+                      onBlur={() => {
+                        if (newSample.sampleNumber.trim()) {
+                          validateNewSample();
+                        }
+                      }}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddSample()}
                       className={`w-full bg-slate-50/50 dark:bg-white/5 rounded-xl px-4 py-3 text-slate-800 dark:text-white focus:outline-none focus:ring-2 transition-all text-center font-mono text-lg font-bold ${
                         newSampleValidation?.status === SampleCheckResult.DuplicateActive || newSampleValidation?.status === SampleCheckResult.DuplicateInPayload
